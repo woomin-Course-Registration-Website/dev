@@ -26,6 +26,40 @@
 
 ## 1. 인증 (Auth)
 
+### POST /api/auth/register
+회원가입
+
+> `ADMIN` 계정은 회원가입으로 생성 불가. 기존 ADMIN이 `POST /api/users`로 생성해야 합니다.
+
+**Request Body:**
+```json
+{
+  "email": "teacher@school.kr",
+  "password": "password123",
+  "name": "김교사",
+  "role": "TEACHER"
+}
+```
+
+**role 값:** `TEACHER` / `STUDENT` / `PARENT`
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "email": "teacher@school.kr",
+    "name": "김교사",
+    "role": "TEACHER",
+    "createdAt": "2025-03-14T10:00:00"
+  },
+  "message": "회원가입이 완료되었습니다."
+}
+```
+
+---
+
 ### POST /api/auth/login
 로그인
 

@@ -1,0 +1,121 @@
+package com.studentmanagement.service;
+
+import com.studentmanagement.domain.Grade;
+import com.studentmanagement.domain.Student;
+import com.studentmanagement.domain.Subject;
+import com.studentmanagement.dto.grade.GradeRequest;
+import com.studentmanagement.dto.grade.GradeResponse;
+import com.studentmanagement.exception.ResourceNotFoundException;
+import com.studentmanagement.repository.GradeRepository;
+import com.studentmanagement.repository.StudentRepository;
+import com.studentmanagement.repository.SubjectRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+/**
+ * 성적 관리 서비스
+ *
+ * 성적 CRUD 및 자동 계산 로직을 담당합니다.
+ *
+ * 성적 응답에 포함되는 자동 계산 값:
+ * - average : 해당 과목·연도·학기의 전체 학생 평균 점수
+ * - total   : 해당 학생의 해당 학기 전 과목 합산 점수
+ */
+@Service
+@Transactional(readOnly = true)
+public class GradeService {
+
+    private final GradeRepository gradeRepository;
+    private final StudentRepository studentRepository;
+    private final SubjectRepository subjectRepository;
+
+    public GradeService(GradeRepository gradeRepository, StudentRepository studentRepository,
+                        SubjectRepository subjectRepository) {
+        this.gradeRepository = gradeRepository;
+        this.studentRepository = studentRepository;
+        this.subjectRepository = subjectRepository;
+    }
+
+    /**
+     * 학생 성적 목록 조회
+     * 연도·학기·과목으로 필터링합니다. 각 항목에 average와 total이 함께 반환됩니다.
+     */
+    public List<GradeResponse> getGrades(Long studentId, Integer year, Integer semester, Long subjectId) {
+        return gradeRepository.findByStudentAndFilters(studentId, year, semester, subjectId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
+     * 성적 입력
+     *
+     * 성적을 저장하고 점수에 따라 gradeRank를 자동 계산합니다.
+     * 동일한 (학생, 과목, 연도, 학기) 조합이 이미 존재하면 DB 유니크 제약에 의해 예외가 발생합니다.
+     */
+    @Transactional
+    public GradeResponse create(Long studentId, GradeRequest request) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+        Subject subject = subjectRepository.findById(request.getSubjectId())
+                .orElseThrow(() -> new ResourceNotFoundException("과목을 찾을 수 없습니다."));
+
+        Grade grade = new Grade();
+        grade.setStudent(student);
+        grade.setSubject(subject);
+        grade.setYear(request.getYear());
+        grade.setSemester(request.getSemester());
+        grade.setScore(request.getScore());
+        grade.setGradeRank(calculateRank(request.getScore().doubleValue()));
+
+        return toResponse(gradeRepository.save(grade));
+    }
+
+    /**
+     * 성적 수정
+     * 점수를 변경하면 gradeRank도 자동으로 재계산됩니다.
+     */
+    @Transactional
+    public GradeResponse update(Long gradeId, GradeRequest request) {
+        Grade grade = gradeRepository.findById(gradeId)
+                .orElseThrow(() -> new ResourceNotFoundException("성적을 찾을 수 없습니다."));
+        grade.setScore(request.getScore());
+        grade.setGradeRank(calculateRank(request.getScore().doubleValue()));
+        return toResponse(grade);
+    }
+
+    /** 성적 삭제 */
+    @Transactional
+    public void delete(Long gradeId) {
+        if (!gradeRepository.existsById(gradeId)) {
+            throw new ResourceNotFoundException("성적을 찾을 수 없습니다.");
+        }
+        gradeRepository.deleteById(gradeId);
+    }
+
+    /**
+     * Grade 엔티티를 GradeResponse DTO로 변환합니다.
+     * average(과목 전체 평균)와 total(학생 학기 총점)을 추가로 조회합니다.
+     */
+    private GradeResponse toResponse(Grade grade) {
+        Double average = gradeRepository.findAverageScore(
+                grade.getSubject().getId(), grade.getYear(), grade.getSemester());
+        Double total = gradeRepository.findTotalScore(
+                grade.getStudent().getId(), grade.getYear(), grade.getSemester());
+        return new GradeResponse(grade, average, total);
+    }
+
+    /**
+     * 점수에 따른 등급 문자 반환
+     * 90↑ A / 80↑ B / 70↑ C / 60↑ D / 60↓ F
+     */
+    private String calculateRank(double score) {
+        if (score >= 90) return "A";
+        if (score >= 80) return "B";
+        if (score >= 70) return "C";
+        if (score >= 60) return "D";
+        return "F";
+    }
+}
