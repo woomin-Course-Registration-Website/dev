@@ -9,6 +9,9 @@ import GradeManagement from './pages/grades/GradeManagement'
 import FeedbackManagement from './pages/feedback/FeedbackManagement'
 import CounselingManagement from './pages/counseling/CounselingManagement'
 import Reports from './pages/reports/Reports'
+import Settings from './pages/settings/Settings'
+import AdminUsers from './pages/admin/AdminUsers'
+import Register from './pages/Register'
 
 function PrivateRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -20,6 +23,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route
           path="/"
           element={
@@ -36,6 +40,8 @@ export default function App() {
           <Route path="feedback" element={<FeedbackManagement />} />
           <Route path="counseling" element={<CounselingManagement />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="admin" element={<AdminUsers />} />
         </Route>
       </Routes>
     </BrowserRouter>

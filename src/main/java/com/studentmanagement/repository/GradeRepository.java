@@ -32,4 +32,13 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
     Double findTotalScore(@Param("studentId") Long studentId,
                           @Param("year") int year,
                           @Param("semester") int semester);
+
+    /** 특정 학생 목록 + 연도/학기 + 과목에 해당하는 성적 수 집계 */
+    @Query("SELECT COUNT(g) FROM Grade g WHERE g.subject.id = :subjectId " +
+           "AND g.year = :year AND g.semester = :semester " +
+           "AND g.student.id IN :studentIds")
+    long countBySubjectYearSemesterAndStudents(@Param("subjectId") Long subjectId,
+                                               @Param("year") int year,
+                                               @Param("semester") int semester,
+                                               @Param("studentIds") List<Long> studentIds);
 }

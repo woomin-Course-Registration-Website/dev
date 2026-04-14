@@ -1,32 +1,9 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-const kpiCards = [
-  { label: '담당 학생',     value: '32명',  sub: '2학년 3반',     color: 'bg-blue-50   text-blue-700',   icon: IconUsers    },
-  { label: '오늘 상담',     value: '3건',   sub: '다음: 14:00',   color: 'bg-green-50  text-green-700',  icon: IconCalendar },
-  { label: '미처리 피드백', value: '5건',   sub: '공개 대기',     color: 'bg-amber-50  text-amber-700',  icon: IconChat     },
-  { label: '미읽은 알림',   value: '3건',   sub: '오늘 수신',     color: 'bg-purple-50 text-purple-700', icon: IconBell     },
-]
-
-const gradeProgress = [
-  { subject: '국어', done: 28, total: 32 },
-  { subject: '수학', done: 22, total: 32 },
-  { subject: '영어', done: 16, total: 32 },
-  { subject: '과학', done: 25, total: 32 },
-  { subject: '체육', done: 32, total: 32 },
-]
-
-const recentCounselings = [
-  { date: '03-22', name: '홍길동', topic: '진로 상담',   time: '14:00' },
-  { date: '03-22', name: '김철수', topic: '학습 고민',   time: '15:30' },
-  { date: '03-23', name: '이영희', topic: '교우 관계',   time: '10:00' },
-  { date: '03-25', name: '박민준', topic: '성적 피드백', time: '13:00' },
-]
-
-const recentNotifications = [
-  { type: 'GRADE',      msg: '홍길동 학생의 수학 성적이 등록되었습니다.',   time: '14:30', read: false },
-  { type: 'FEEDBACK',   msg: '김철수 학생 피드백 공개 대기 중입니다.',       time: '11:00', read: false },
-  { type: 'COUNSELING', msg: '이영희 학생 상담 내역이 업데이트되었습니다.', time: '어제',  read: true  },
-]
+import { getStudents } from '../api/students'
+import { getCounselings } from '../api/counselings'
+import { getNotifications, markAsRead } from '../api/notifications'
+import { getGradeStats } from '../api/grades'
 
 const ntypeColor = { GRADE: 'badge-blue', FEEDBACK: 'badge-purple', COUNSELING: 'badge-green' }
 const ntypeLabel = { GRADE: '성적', FEEDBACK: '피드백', COUNSELING: '상담' }
@@ -38,9 +15,97 @@ function progressColor(pct) {
   return 'bg-red-400'
 }
 
+function timeAgo(dateStr) {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return '방금'
+  if (mins < 60) return `${mins}분 전`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}시간 전`
+  return `${Math.floor(hrs / 24)}일 전`
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
+  const todayStr = new Date().toISOString().slice(0, 10)
+
+  const [students,      setStudents]      = useState([])
+  const [counselings,   setCounselings]   = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [gradeProgress, setGradeProgress] = useState([])
+  const [loading,       setLoading]       = useState(true)
+
+  const loadData = useCallback(async () => {
+    try {
+      const [s, c, n, stats] = await Promise.all([
+        getStudents(),
+        getCounselings(),
+        getNotifications(),
+        getGradeStats().catch(() => []),
+      ])
+      setStudents(s     || [])
+      setCounselings(c  || [])
+      setNotifications(n || [])
+      setGradeProgress(
+        (stats || []).map((item) => ({
+          subject: item.subjectName,
+          done:    Number(item.gradeCount),
+          total:   Number(item.studentCount),
+        }))
+      )
+    } catch {
+      // 에러는 axios 인터셉터에서 처리
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const todayCounselings  = counselings.filter((c) => c.date === todayStr)
+  const unreadCount       = notifications.filter((n) => !n.isRead).length
+  const recentCounselings = [...counselings].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4)
+  const recentNotifs      = notifications.slice(0, 5)
+
+  const kpiCards = [
+    {
+      label: '담당 학생',
+      value: loading ? '...' : `${students.length}명`,
+      sub: '전체 학생',
+      color: 'bg-blue-50 text-blue-700',
+      icon: IconUsers,
+    },
+    {
+      label: '오늘 상담',
+      value: loading ? '...' : `${todayCounselings.length}건`,
+      sub: '오늘 일정',
+      color: 'bg-green-50 text-green-700',
+      icon: IconCalendar,
+    },
+    {
+      label: '미읽은 알림',
+      value: loading ? '...' : `${unreadCount}건`,
+      sub: '확인 필요',
+      color: 'bg-purple-50 text-purple-700',
+      icon: IconBell,
+    },
+    {
+      label: '전체 상담',
+      value: loading ? '...' : `${counselings.length}건`,
+      sub: '누적 기록',
+      color: 'bg-amber-50 text-amber-700',
+      icon: IconChat,
+    },
+  ]
+
+  const handleNotifClick = async (n) => {
+    if (!n.isRead) {
+      await markAsRead(n.id).catch(() => {})
+      setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, isRead: true } : x))
+    }
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -117,26 +182,32 @@ export default function Dashboard() {
               </svg>
             </button>
           </div>
-          <ul className="space-y-3">
-            {recentCounselings.map(({ date, name, topic, time }, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center font-semibold text-sm flex-shrink-0">
-                  {name[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{name}</p>
-                  <p className="text-xs text-gray-400 truncate">{topic}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-medium text-gray-600">{date}</p>
-                  <p className="text-xs text-gray-400">{time}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {loading ? (
+            <div className="flex items-center justify-center h-32 text-gray-400 text-sm">불러오는 중...</div>
+          ) : recentCounselings.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-gray-400 text-sm">상담 기록이 없습니다.</div>
+          ) : (
+            <ul className="space-y-3">
+              {recentCounselings.map((c) => (
+                <li
+                  key={c.id}
+                  onClick={() => navigate('/counseling')}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                    {(c.studentName || '?')[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{c.studentName}</p>
+                    <p className="text-xs text-gray-400 truncate">{c.content?.slice(0, 30)}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs font-medium text-gray-600">{c.date}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
@@ -144,23 +215,34 @@ export default function Dashboard() {
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">최근 알림</h2>
-          <button className="text-xs text-primary-600 hover:text-primary-700 font-medium">전체 보기</button>
+          {unreadCount > 0 && (
+            <span className="text-xs bg-primary-100 text-primary-700 font-semibold px-2 py-0.5 rounded-full">
+              {unreadCount}개 미읽음
+            </span>
+          )}
         </div>
-        <ul className="space-y-2">
-          {recentNotifications.map((n, i) => (
-            <li
-              key={i}
-              className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-primary-50/60' : ''}`}
-            >
-              <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.read ? 'bg-gray-300' : 'bg-primary-500'}`} />
-              <div className="flex-1 min-w-0">
-                <span className={`badge mr-2 ${ntypeColor[n.type]}`}>{ntypeLabel[n.type]}</span>
-                <span className="text-sm text-gray-700">{n.msg}</span>
-              </div>
-              <span className="text-xs text-gray-400 flex-shrink-0">{n.time}</span>
-            </li>
-          ))}
-        </ul>
+        {loading ? (
+          <div className="text-center text-gray-400 text-sm py-6">불러오는 중...</div>
+        ) : recentNotifs.length === 0 ? (
+          <div className="text-center text-gray-400 text-sm py-6">새로운 알림이 없습니다.</div>
+        ) : (
+          <ul className="space-y-2">
+            {recentNotifs.map((n) => (
+              <li
+                key={n.id}
+                onClick={() => handleNotifClick(n)}
+                className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-primary-50/60' : ''}`}
+              >
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.isRead ? 'bg-gray-300' : 'bg-primary-500'}`} />
+                <div className="flex-1 min-w-0">
+                  <span className={`badge mr-2 ${ntypeColor[n.type] || 'badge-gray'}`}>{ntypeLabel[n.type] || n.type}</span>
+                  <span className="text-sm text-gray-700">{n.message}</span>
+                </div>
+                <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(n.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

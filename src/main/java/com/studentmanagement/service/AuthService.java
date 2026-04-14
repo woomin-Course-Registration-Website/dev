@@ -117,6 +117,22 @@ public class AuthService {
      *
      * @throws ResourceNotFoundException 등록된 이메일 없음
      */
+    /**
+     * 비밀번호 변경 (로그인 상태에서)
+     *
+     * @throws UnauthorizedException 현재 비밀번호 불일치
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public void changePassword(String email, String currentPassword, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new UnauthorizedException("현재 비밀번호가 올바르지 않습니다.");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
     public void sendResetPasswordEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("해당 이메일로 등록된 사용자가 없습니다."));

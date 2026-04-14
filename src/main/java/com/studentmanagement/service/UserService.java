@@ -34,6 +34,22 @@ public class UserService {
         return userRepository.findAll().stream().map(UserResponse::new).toList();
     }
 
+    /** 이메일로 사용자 조회 (내 프로필) */
+    public UserResponse getByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        return new UserResponse(user);
+    }
+
+    /** 이름 변경 (내 프로필 수정) */
+    @Transactional
+    public UserResponse updateName(String email, String name) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        user.setName(name);
+        return new UserResponse(user);
+    }
+
     /**
      * 사용자 생성
      * 이메일 중복 여부를 먼저 확인합니다.

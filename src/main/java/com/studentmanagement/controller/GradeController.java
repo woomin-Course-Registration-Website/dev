@@ -2,6 +2,7 @@ package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.grade.GradeRequest;
+import com.studentmanagement.dto.grade.GradeStatsItem;
 import com.studentmanagement.service.GradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -101,5 +102,17 @@ public class GradeController {
             @Parameter(description = "성적 ID") @PathVariable Long id) {
         gradeService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok(null, "성적이 삭제되었습니다."));
+    }
+
+    @Operation(summary = "과목별 성적 입력 현황",
+               description = "대시보드용. 과목별 성적 입력 학생 수 / 전체 학생 수를 반환합니다.")
+    @GetMapping("/api/grades/stats")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.List<GradeStatsItem>>> getStats(
+            @Parameter(description = "학년") @RequestParam(required = false) Integer grade,
+            @Parameter(description = "반")  @RequestParam(required = false) Integer classNum,
+            @Parameter(description = "연도") @RequestParam(required = false) Integer year,
+            @Parameter(description = "학기") @RequestParam(required = false) Integer semester) {
+        return ResponseEntity.ok(ApiResponse.ok(gradeService.getStats(grade, classNum, year, semester)));
     }
 }

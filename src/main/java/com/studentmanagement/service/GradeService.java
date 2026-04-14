@@ -5,6 +5,7 @@ import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.Subject;
 import com.studentmanagement.dto.grade.GradeRequest;
 import com.studentmanagement.dto.grade.GradeResponse;
+import com.studentmanagement.dto.grade.GradeStatsItem;
 import com.studentmanagement.exception.ResourceNotFoundException;
 import com.studentmanagement.repository.GradeRepository;
 import com.studentmanagement.repository.StudentRepository;
@@ -93,6 +94,28 @@ public class GradeService {
             throw new ResourceNotFoundException("성적을 찾을 수 없습니다.");
         }
         gradeRepository.deleteById(gradeId);
+    }
+
+    /**
+     * 과목별 성적 입력 현황 (대시보드용)
+     * 각 과목에 대해 해당 학급 학생 중 성적이 입력된 수와 전체 학생 수를 반환합니다.
+     */
+    public List<GradeStatsItem> getStats(Integer grade, Integer classNum, Integer year, Integer semester) {
+        int y = (year     != null) ? year     : java.time.LocalDate.now().getYear();
+        int s = (semester != null) ? semester : 1;
+
+        List<Student> students = studentRepository.findByFilters(grade, classNum, null);
+        List<Long> studentIds  = students.stream().map(Student::getId).toList();
+        long studentCount      = studentIds.size();
+
+        return subjectRepository.findAll().stream()
+                .map(subject -> {
+                    long count = studentIds.isEmpty() ? 0
+                            : gradeRepository.countBySubjectYearSemesterAndStudents(
+                                subject.getId(), y, s, studentIds);
+                    return new GradeStatsItem(subject.getName(), count, studentCount);
+                })
+                .toList();
     }
 
     /**

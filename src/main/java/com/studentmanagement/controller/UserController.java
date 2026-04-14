@@ -1,6 +1,7 @@
 package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.ApiResponse;
+import com.studentmanagement.dto.user.UpdateProfileRequest;
 import com.studentmanagement.dto.user.UserRequest;
 import com.studentmanagement.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,18 +12,18 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 사용자 계정 관리 컨트롤러 (ADMIN 전용)
+ * 사용자 계정 관리 컨트롤러
  *
- * 교사/학생/학부모 계정의 CRUD를 담당합니다.
- * 모든 엔드포인트는 ADMIN 권한이 필요합니다.
+ * - GET/PUT /api/users/me : 인증된 사용자라면 누구나 자신의 프로필 조회·수정 가능
+ * - 나머지 CRUD : ADMIN 권한 필요
  */
-@Tag(name = "사용자 관리", description = "ADMIN 전용 — 교사/학생/학부모 계정 생성·수정·삭제")
+@Tag(name = "사용자 관리", description = "내 프로필 조회·수정 및 ADMIN 전용 계정 CRUD")
 @RestController
 @RequestMapping("/api/users")
-@PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
     private final UserService userService;
@@ -30,6 +31,23 @@ public class UserController {
     public UserController(UserService userService) {
         this.userService = userService;
     }
+
+    // ── 내 프로필 (인증된 모든 사용자) ──────────────────────────
+
+    @Operation(summary = "내 프로필 조회")
+    @GetMapping("/me")
+    public ResponseEntity<?> getMe(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getByEmail(auth.getName())));
+    }
+
+    @Operation(summary = "내 프로필 수정 (이름 변경)")
+    @PutMapping("/me")
+    public ResponseEntity<?> updateMe(Authentication auth,
+                                      @Valid @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.updateName(auth.getName(), request.getName())));
+    }
+
+    // ── ADMIN 전용 ───────────────────────────────────────────────
 
     @Operation(summary = "사용자 목록 조회", description = "전체 사용자 계정 목록을 반환합니다.")
     @ApiResponses({

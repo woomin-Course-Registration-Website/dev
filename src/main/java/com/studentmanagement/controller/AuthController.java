@@ -1,6 +1,7 @@
 package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.ApiResponse;
+import com.studentmanagement.dto.auth.ChangePasswordRequest;
 import com.studentmanagement.dto.auth.LoginRequest;
 import com.studentmanagement.dto.auth.RefreshRequest;
 import com.studentmanagement.dto.auth.RegisterRequest;
@@ -12,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -91,5 +93,14 @@ public class AuthController {
     public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.sendResetPasswordEmail(request.getEmail());
         return ResponseEntity.ok(ApiResponse.ok(null, "임시 비밀번호가 이메일로 발송되었습니다."));
+    }
+
+    @Operation(summary = "비밀번호 변경", description = "로그인 상태에서 현재 비밀번호를 확인 후 새 비밀번호로 변경합니다.")
+    @PostMapping("/change-password")
+    @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<?> changePassword(Authentication auth,
+                                            @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(auth.getName(), request.getCurrentPassword(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.ok(null, "비밀번호가 변경되었습니다."));
     }
 }

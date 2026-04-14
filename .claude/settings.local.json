@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(find /c/project/softwareDesign/dev/frontend/src -type f \\\\\\(-name *.jsx -o -name *.js \\\\\\))",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "WebFetch(domain:www.threads.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

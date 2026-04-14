@@ -46,6 +46,12 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
+    // Excel 보고서 (Apache POI)
+    implementation 'org.apache.poi:poi-ooxml:5.2.5'
+
+    // PDF 보고서 (OpenPDF - LGPL)
+    implementation 'com.github.librepdf:openpdf:1.3.30'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'

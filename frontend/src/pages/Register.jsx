@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import useAuthStore from '../store/authStore'
-import { login as loginApi } from '../api/auth'
+import { register as registerApi } from '../api/auth'
 
-export default function Login() {
-  const navigate  = useNavigate()
-  const loginStore = useAuthStore((s) => s.login)
+const ROLES = [
+  { value: 'TEACHER', label: '교사' },
+  { value: 'STUDENT', label: '학생' },
+  { value: 'PARENT',  label: '학부모' },
+]
 
-  const [form, setForm]     = useState({ email: '', password: '' })
-  const [error, setError]   = useState('')
+export default function Register() {
+  const navigate = useNavigate()
+
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', name: '', role: 'TEACHER' })
+  const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
-  const [shake, setShake]   = useState(false)
+  const [shake, setShake]     = useState(false)
 
   const handleChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
@@ -19,18 +23,24 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.email || !form.password) {
-      triggerError('이메일과 비밀번호를 입력해주세요.')
+    if (!form.email || !form.password || !form.name) {
+      triggerError('모든 항목을 입력해주세요.')
+      return
+    }
+    if (form.password.length < 8) {
+      triggerError('비밀번호는 8자 이상이어야 합니다.')
+      return
+    }
+    if (form.password !== form.confirmPassword) {
+      triggerError('비밀번호가 일치하지 않습니다.')
       return
     }
     setLoading(true)
     try {
-      const data = await loginApi(form.email, form.password)
-      // accessToken, refreshToken, user 저장
-      loginStore(data.user, data.accessToken, data.refreshToken)
-      navigate('/dashboard')
+      await registerApi(form.email, form.password, form.name, form.role)
+      navigate('/login', { state: { registered: true } })
     } catch (err) {
-      const msg = err.response?.data?.error || '이메일 또는 비밀번호가 올바르지 않습니다.'
+      const msg = err.response?.data?.error || '회원가입에 실패했습니다.'
       triggerError(msg)
     } finally {
       setLoading(false)
@@ -45,7 +55,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 flex items-center justify-center p-4">
-      {/* 배경 장식 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/5 rounded-full" />
         <div className="absolute -bottom-32 -left-20 w-80 h-80 bg-white/5 rounded-full" />
@@ -63,16 +72,28 @@ export default function Login() {
 
         {/* 카드 */}
         <div className={`bg-white rounded-2xl shadow-modal p-8 ${shake ? 'animate-shake' : ''}`}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">로그인</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">회원가입</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">이름</label>
+              <input
+                name="name"
+                type="text"
+                placeholder="홍길동"
+                value={form.name}
+                onChange={handleChange}
+                className={error ? 'input-error' : 'input'}
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">이메일</label>
               <input
                 name="email"
                 type="email"
                 autoComplete="email"
-                placeholder="teacher@school.kr"
+                placeholder="example@school.kr"
                 value={form.email}
                 onChange={handleChange}
                 className={error ? 'input-error' : 'input'}
@@ -80,13 +101,40 @@ export default function Login() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">역할</label>
+              <select
+                name="role"
+                value={form.role}
+                onChange={handleChange}
+                className="input"
+              >
+                {ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">비밀번호</label>
               <input
                 name="password"
                 type="password"
-                autoComplete="current-password"
-                placeholder="••••••••"
+                autoComplete="new-password"
+                placeholder="8자 이상"
                 value={form.password}
+                onChange={handleChange}
+                className={error ? 'input-error' : 'input'}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">비밀번호 확인</label>
+              <input
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={form.confirmPassword}
                 onChange={handleChange}
                 className={error ? 'input-error' : 'input'}
               />
@@ -111,25 +159,15 @@ export default function Login() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-              ) : '로그인'}
+              ) : '회원가입'}
             </button>
           </form>
 
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-xs text-gray-400">또는</span>
-            </div>
+          <div className="mt-5 text-center">
+            <Link to="/login" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+              이미 계정이 있으신가요? 로그인
+            </Link>
           </div>
-
-          <Link
-            to="/register"
-            className="btn-md btn-secondary w-full text-gray-600 flex items-center justify-center"
-          >
-            회원가입
-          </Link>
         </div>
       </div>
     </div>

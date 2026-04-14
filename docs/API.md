@@ -258,7 +258,60 @@ Access Token 재발급
 
 ---
 
-## 9. 과목 (Subject)
+## 9. 보고서 (Reports)
+
+> 권한: `TEACHER`, `ADMIN`
+
+| Method | URL | 설명 |
+|--------|-----|------|
+| GET | /api/reports/preview  | 보고서 미리보기 데이터 (JSON) |
+| GET | /api/reports/download | Excel / PDF 파일 다운로드 |
+
+**보고서 종류 (`type` 파라미터):**
+| 값 | 이름 |
+|----|------|
+| `grade-summary`     | 성적 종합 보고서 |
+| `student-record`    | 학생부 보고서 |
+| `feedback-report`   | 피드백 현황 보고서 |
+| `counseling-report` | 상담 이력 보고서 |
+
+**GET /api/reports/preview Query Params:**
+- `type`: 보고서 종류 (필수)
+- `grade`: 학년 필터 (선택)
+- `classNum`: 반 필터 (선택)
+- `year`: 연도 (grade-summary에서 사용)
+- `semester`: 학기 (grade-summary에서 사용, 1 또는 2)
+
+**Preview Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "columns": [
+      { "key": "name", "label": "이름", "align": "left" },
+      { "key": "avg",  "label": "평균점수", "align": "right" }
+    ],
+    "rows": [
+      { "name": "홍길동", "avg": "85.4", "gradeRank": "B" }
+    ],
+    "totalCount": 32,
+    "generatedAt": "2025-03-22"
+  }
+}
+```
+
+**GET /api/reports/download Query Params:**
+- 위 preview 파라미터 동일
+- `format`: `excel`(기본값) 또는 `pdf`
+
+**Download Response:**
+- Excel: `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- PDF: `Content-Type: application/pdf`
+- `Content-Disposition: attachment; filename="grade-summary_2025-03-22.xlsx"`
+
+---
+
+## 10. 과목 (Subject)
 
 | Method | URL | 설명 | 권한 |
 |--------|-----|------|------|
