@@ -4,7 +4,10 @@
       "Bash(find /c/project/softwareDesign/dev/frontend/src -type f \\\\\\(-name *.jsx -o -name *.js \\\\\\))",
       "Bash(xargs grep:*)",
       "WebFetch(domain:www.threads.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(wc -l /c/project/softwareDesign/dev/frontend/src/api/*.js)",
+      "Bash(wc -l /c/project/softwareDesign/dev/frontend/src/pages/**/*.jsx /c/project/softwareDesign/dev/frontend/src/pages/*.jsx)",
+      "Bash(grep -n \"sendResetPasswordEmail\\\\|NotificationService.*send\\\\|markAllAsRead\" /c/project/softwareDesign/dev/src/main/java/com/studentmanagement/service/*.java)"
     ]
   }
 }

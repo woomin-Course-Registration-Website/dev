@@ -1,6 +1,7 @@
 package com.studentmanagement.service;
 
 import com.studentmanagement.domain.Grade;
+import com.studentmanagement.domain.Notification;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.Subject;
 import com.studentmanagement.dto.grade.GradeRequest;
@@ -31,12 +32,14 @@ public class GradeService {
     private final GradeRepository gradeRepository;
     private final StudentRepository studentRepository;
     private final SubjectRepository subjectRepository;
+    private final NotificationService notificationService;
 
     public GradeService(GradeRepository gradeRepository, StudentRepository studentRepository,
-                        SubjectRepository subjectRepository) {
+                        SubjectRepository subjectRepository, NotificationService notificationService) {
         this.gradeRepository = gradeRepository;
         this.studentRepository = studentRepository;
         this.subjectRepository = subjectRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -71,7 +74,13 @@ public class GradeService {
         grade.setScore(request.getScore());
         grade.setGradeRank(calculateRank(request.getScore().doubleValue()));
 
-        return toResponse(gradeRepository.save(grade));
+        GradeResponse response = toResponse(gradeRepository.save(grade));
+        notificationService.send(
+                student.getUser(),
+                Notification.Type.GRADE,
+                subject.getName() + " 성적이 등록되었습니다. (" + response.getGradeRank() + "등급)"
+        );
+        return response;
     }
 
     /**

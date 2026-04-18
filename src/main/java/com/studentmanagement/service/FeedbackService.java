@@ -1,6 +1,7 @@
 package com.studentmanagement.service;
 
 import com.studentmanagement.domain.Feedback;
+import com.studentmanagement.domain.Notification;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.feedback.FeedbackRequest;
@@ -30,13 +31,16 @@ public class FeedbackService {
     private final FeedbackRepository feedbackRepository;
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public FeedbackService(FeedbackRepository feedbackRepository,
                            StudentRepository studentRepository,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           NotificationService notificationService) {
         this.feedbackRepository = feedbackRepository;
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -76,7 +80,13 @@ public class FeedbackService {
         feedback.setContent(request.getContent());
         feedback.setPublic(request.isPublic());
 
-        return new FeedbackResponse(feedbackRepository.save(feedback));
+        FeedbackResponse response = new FeedbackResponse(feedbackRepository.save(feedback));
+        notificationService.send(
+                student.getUser(),
+                Notification.Type.FEEDBACK,
+                teacher.getName() + " 선생님이 피드백을 남겼습니다."
+        );
+        return response;
     }
 
     /**

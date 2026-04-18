@@ -5,6 +5,9 @@ import { getCounselings } from '../api/counselings'
 import { getNotifications, markAsRead } from '../api/notifications'
 import { getGradeStats } from '../api/grades'
 
+const currentYear     = new Date().getFullYear()
+const currentSemester = new Date().getMonth() >= 8 ? 2 : 1
+
 const ntypeColor = { GRADE: 'badge-blue', FEEDBACK: 'badge-purple', COUNSELING: 'badge-green' }
 const ntypeLabel = { GRADE: '성적', FEEDBACK: '피드백', COUNSELING: '상담' }
 
@@ -43,7 +46,7 @@ export default function Dashboard() {
         getStudents(),
         getCounselings(),
         getNotifications(),
-        getGradeStats().catch(() => []),
+        getGradeStats({ semester: currentSemester }).catch(() => []),
       ])
       setStudents(s     || [])
       setCounselings(c  || [])
@@ -136,7 +139,7 @@ export default function Dashboard() {
         {/* 성적 입력 현황 */}
         <div className="card p-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-semibold text-gray-900">이번 주 성적 입력 현황</h2>
+            <h2 className="font-semibold text-gray-900">성적 입력 현황 <span className="text-xs font-normal text-gray-400">{currentYear}년 {currentSemester}학기</span></h2>
             <button
               onClick={() => navigate('/grades')}
               className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
@@ -147,6 +150,11 @@ export default function Dashboard() {
               </svg>
             </button>
           </div>
+          {gradeProgress.length === 0 && !loading && (
+            <div className="flex items-center justify-center h-24 text-gray-400 text-sm">
+              등록된 과목 또는 학생이 없습니다.
+            </div>
+          )}
           <div className="space-y-3.5">
             {gradeProgress.map(({ subject, done, total }) => {
               const pct = done / total

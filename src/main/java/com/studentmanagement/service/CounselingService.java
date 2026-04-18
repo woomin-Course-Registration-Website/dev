@@ -1,6 +1,7 @@
 package com.studentmanagement.service;
 
 import com.studentmanagement.domain.Counseling;
+import com.studentmanagement.domain.Notification;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.counseling.CounselingRequest;
@@ -29,13 +30,16 @@ public class CounselingService {
     private final CounselingRepository counselingRepository;
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public CounselingService(CounselingRepository counselingRepository,
                              StudentRepository studentRepository,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             NotificationService notificationService) {
         this.counselingRepository = counselingRepository;
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -73,7 +77,13 @@ public class CounselingService {
         counseling.setNextPlan(request.getNextPlan());
         counseling.setShareScope(request.getShareScope() != null ? request.getShareScope() : Counseling.ShareScope.ALL);
 
-        return new CounselingResponse(counselingRepository.save(counseling));
+        CounselingResponse response = new CounselingResponse(counselingRepository.save(counseling));
+        notificationService.send(
+                student.getUser(),
+                Notification.Type.COUNSELING,
+                teacher.getName() + " 선생님과의 상담이 등록되었습니다. (" + request.getDate() + ")"
+        );
+        return response;
     }
 
     /**
