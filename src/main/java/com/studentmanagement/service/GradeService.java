@@ -4,6 +4,7 @@ import com.studentmanagement.domain.Grade;
 import com.studentmanagement.domain.Notification;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.Subject;
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.grade.GradeRequest;
 import com.studentmanagement.dto.grade.GradeResponse;
 import com.studentmanagement.dto.grade.GradeStatsItem;
@@ -33,20 +34,25 @@ public class GradeService {
     private final StudentRepository studentRepository;
     private final SubjectRepository subjectRepository;
     private final NotificationService notificationService;
+    private final StudentAccessService studentAccessService;
 
     public GradeService(GradeRepository gradeRepository, StudentRepository studentRepository,
-                        SubjectRepository subjectRepository, NotificationService notificationService) {
+                        SubjectRepository subjectRepository, NotificationService notificationService,
+                        StudentAccessService studentAccessService) {
         this.gradeRepository = gradeRepository;
         this.studentRepository = studentRepository;
         this.subjectRepository = subjectRepository;
         this.notificationService = notificationService;
+        this.studentAccessService = studentAccessService;
     }
 
     /**
      * 학생 성적 목록 조회
-     * 연도·학기·과목으로 필터링합니다. 각 항목에 average와 total이 함께 반환됩니다.
+     * STUDENT는 본인, PARENT는 연동된 자녀만 조회 가능합니다.
      */
-    public List<GradeResponse> getGrades(Long studentId, Integer year, Integer semester, Long subjectId) {
+    public List<GradeResponse> getGrades(Long studentId, Integer year, Integer semester, Long subjectId,
+                                         String requesterEmail, User.Role role) {
+        studentAccessService.check(studentId, requesterEmail, role);
         return gradeRepository.findByStudentAndFilters(studentId, year, semester, subjectId)
                 .stream()
                 .map(this::toResponse)
@@ -93,7 +99,7 @@ public class GradeService {
                 .orElseThrow(() -> new ResourceNotFoundException("성적을 찾을 수 없습니다."));
         grade.setScore(request.getScore());
         grade.setGradeRank(calculateRank(request.getScore().doubleValue()));
-        return toResponse(grade);
+        return toResponse(gradeRepository.save(grade));
     }
 
     /** 성적 삭제 */

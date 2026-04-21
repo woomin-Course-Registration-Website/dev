@@ -188,3 +188,7 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/windows,java,intellij,visualstudiocode
 
 .env*
+
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/

@@ -4,11 +4,11 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
-import { getStudent } from '../../api/students'
+import { getStudent, addParent, removeParent } from '../../api/students'
 import { getGrades } from '../../api/grades'
 import { getRecord, updateRecord } from '../../api/records'
 import { getFeedbacks, createFeedback, deleteFeedback } from '../../api/feedbacks'
-import { getCounselings, createCounseling, deleteCounseling } from '../../api/counselings'
+import { getCounselings, createCounseling, deleteCounseling, getPublicCounselings } from '../../api/counselings'
 import useAuthStore from '../../store/authStore'
 
 const catColorMap = {
@@ -25,7 +25,8 @@ const rankColor = (r) => {
   return 'text-red-600 font-bold'
 }
 
-const TABS = ['성적', '학생부', '피드백', '상담']
+const TEACHER_TABS = ['성적', '학생부', '피드백', '상담', '학부모']
+const STUDENT_TABS = ['성적', '학생부', '피드백', '상담']
 const FEEDBACK_CATEGORIES = ['GRADE', 'BEHAVIOR', 'ATTENDANCE', 'ATTITUDE', 'OTHER']
 
 export default function StudentDetail() {
@@ -34,6 +35,7 @@ export default function StudentDetail() {
   const user = useAuthStore((s) => s.user)
   const isTeacher = user?.role === 'TEACHER'
 
+  const TABS = isTeacher ? TEACHER_TABS : STUDENT_TABS
   const [tab, setTab]     = useState('성적')
   const [year, setYear]   = useState(String(new Date().getFullYear()))
   const [semester, setSemester] = useState('1')
@@ -57,6 +59,10 @@ export default function StudentDetail() {
   // 상담 추가 폼
   const [csForm, setCsForm]   = useState({ date: '', content: '', nextPlan: '', shareScope: 'ALL' })
   const [csModal, setCsModal] = useState(false)
+
+  // 학부모 연동 (교사용)
+  const [parentIdInput, setParentIdInput] = useState('')
+  const [parentSaving,  setParentSaving]  = useState(false)
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -85,9 +91,10 @@ export default function StudentDetail() {
     } else if (tab === '피드백') {
       getFeedbacks(id).then(setFeedbacks).catch(() => setFeedbacks([]))
     } else if (tab === '상담') {
-      getCounselings({ studentId: id }).then(setCounselings).catch(() => setCounselings([]))
+      const loader = isTeacher ? getCounselings({ studentId: id }) : getPublicCounselings(id)
+      loader.then(setCounselings).catch(() => setCounselings([]))
     }
-  }, [id, tab, year, semester])
+  }, [id, tab, year, semester, isTeacher])
 
   const handleSaveRecord = async () => {
     try {
@@ -132,6 +139,26 @@ export default function StudentDetail() {
     try {
       await deleteCounseling(csId)
       setCounselings((prev) => prev.filter((c) => c.id !== csId))
+    } catch { /* 에러 무시 */ }
+  }
+
+  const handleAddParent = async () => {
+    const pid = Number(parentIdInput.trim())
+    if (!pid) return
+    setParentSaving(true)
+    try {
+      const updated = await addParent(id, pid)
+      setStudent(updated)
+      setParentIdInput('')
+    } catch { /* 에러 무시 */ }
+    finally { setParentSaving(false) }
+  }
+
+  const handleRemoveParent = async (parentUserId) => {
+    if (!confirm('학부모 연동을 해제하시겠습니까?')) return
+    try {
+      const updated = await removeParent(id, parentUserId)
+      setStudent(updated)
     } catch { /* 에러 무시 */ }
   }
 
@@ -443,6 +470,53 @@ export default function StudentDetail() {
               )}
             </div>
           ))}
+        </div>
+      )}
+      {/* ── 탭: 학부모 (교사 전용) ── */}
+      {tab === '학부모' && isTeacher && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="card p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">연동된 학부모 계정</h3>
+            {student.parents?.length === 0 ? (
+              <p className="text-sm text-gray-400 mb-4">연동된 학부모 계정이 없습니다.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100 mb-4">
+                {student.parents?.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <span className="font-medium text-gray-900 text-sm">{p.name}</span>
+                      <span className="text-gray-400 text-xs ml-2">{p.email}</span>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveParent(p.id)}
+                      className="btn-sm text-red-500 hover:bg-red-50 rounded-md px-2 text-xs font-medium transition-colors"
+                    >
+                      연동 해제
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={parentIdInput}
+                onChange={(e) => setParentIdInput(e.target.value)}
+                placeholder="학부모 계정 User ID 입력"
+                className="input flex-1 h-9 py-1.5"
+              />
+              <button
+                onClick={handleAddParent}
+                disabled={parentSaving || !parentIdInput}
+                className="btn-md btn-primary px-4"
+              >
+                {parentSaving ? '연동 중...' : '연동'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              사용자 관리 페이지에서 PARENT 역할 계정의 ID를 확인하세요.
+            </p>
+          </div>
         </div>
       )}
     </div>

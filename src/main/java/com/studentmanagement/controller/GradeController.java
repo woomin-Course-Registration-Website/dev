@@ -1,5 +1,6 @@
 package com.studentmanagement.controller;
 
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.grade.GradeRequest;
 import com.studentmanagement.dto.grade.GradeStatsItem;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -54,8 +56,14 @@ public class GradeController {
             @Parameter(description = "학생 ID") @PathVariable Long studentId,
             @Parameter(description = "연도 필터 (예: 2025)") @RequestParam(required = false) Integer year,
             @Parameter(description = "학기 필터 (1 또는 2)") @RequestParam(required = false) Integer semester,
-            @Parameter(description = "과목 ID 필터") @RequestParam(required = false) Long subjectId) {
-        return ResponseEntity.ok(ApiResponse.ok(gradeService.getGrades(studentId, year, semester, subjectId)));
+            @Parameter(description = "과목 ID 필터") @RequestParam(required = false) Long subjectId,
+            Authentication auth) {
+        User.Role role = User.Role.valueOf(
+                auth.getAuthorities().stream().findFirst()
+                        .map(a -> a.getAuthority().replace("ROLE_", ""))
+                        .orElseThrow());
+        return ResponseEntity.ok(ApiResponse.ok(
+                gradeService.getGrades(studentId, year, semester, subjectId, auth.getName(), role)));
     }
 
     @Operation(

@@ -31,15 +31,18 @@ public class CounselingService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final StudentAccessService studentAccessService;
 
     public CounselingService(CounselingRepository counselingRepository,
                              StudentRepository studentRepository,
                              UserRepository userRepository,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             StudentAccessService studentAccessService) {
         this.counselingRepository = counselingRepository;
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.studentAccessService = studentAccessService;
     }
 
     /**
@@ -55,6 +58,16 @@ public class CounselingService {
     /** 상담 상세 조회 */
     public CounselingResponse getById(Long id) {
         return new CounselingResponse(findCounseling(id));
+    }
+
+    /**
+     * STUDENT/PARENT용 공개 상담 조회 (shareScope=ALL만 반환)
+     * 소유권 검증 후 해당 학생의 전체공개 상담만 반환합니다.
+     */
+    public List<CounselingResponse> getPublicForStudent(Long studentId, String requesterEmail, User.Role role) {
+        studentAccessService.check(studentId, requesterEmail, role);
+        return counselingRepository.findPublicByStudentId(studentId)
+                .stream().map(CounselingResponse::new).toList();
     }
 
     /**
@@ -106,7 +119,7 @@ public class CounselingService {
         if (request.getShareScope() != null) {
             counseling.setShareScope(request.getShareScope());
         }
-        return new CounselingResponse(counseling);
+        return new CounselingResponse(counselingRepository.save(counseling));
     }
 
     /**

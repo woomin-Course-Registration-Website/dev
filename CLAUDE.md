@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-이 파일은 Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참고하는 가이드입니다.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 프로젝트 개요
 
@@ -106,6 +106,20 @@ MySQL 8 :3306  (DB: student_management)
 - dev 프로파일: `ddl-auto: create-drop`, show-sql: true
 - prod 프로파일: `ddl-auto: update` (Docker 최초 실행 대응)
 - CORS 허용 오리진: `http://localhost`, `http://localhost:80`, `http://localhost:3000`
+
+## 테스트 패턴
+
+**Controller 테스트**: `@WebMvcTest` + `@TestPropertySource`로 JWT 속성 주입. `SecurityTestHelper`로 역할 스텁 (`stubAsTeacher()`, `stubAsStudent()`) — Bearer 토큰: `"Bearer fake.test.token"`.
+
+**픽스처**: `TestFixtures` 클래스의 정적 빌더 메서드로 엔티티 생성 (`teacherUser()`, `student(linkedUser)` 등). 리플렉션으로 ID 주입.
+
+**Service 트랜잭션 패턴**: 클래스 레벨 `@Transactional(readOnly = true)` + 쓰기 메서드에 `@Transactional` 개별 오버라이드.
+
+**소유권 검증**: 서비스 계층에서 `email` 기반으로 생성자 본인 여부 확인 후 수정/삭제 허용 (e.g. CounselingService).
+
+**알림 연동**: 서비스에서 도메인 이벤트 발생 시 `NotificationService.send()`로 직접 호출 (e.g. 성적 입력 후 학생/학부모에게 알림).
+
+**역할별 응답 필터링**: 서비스에서 요청자 역할(TEACHER vs STUDENT/PARENT)에 따라 반환 데이터 차등 처리 (e.g. FeedbackService).
 
 ## 상세 문서
 

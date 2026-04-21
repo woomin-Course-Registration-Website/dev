@@ -133,19 +133,20 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void sendResetPasswordEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("해당 이메일로 등록된 사용자가 없습니다."));
 
-        // 8자리 임시 비밀번호 생성 및 저장
         String tempPassword = UUID.randomUUID().toString().substring(0, 8);
-        user.setPassword(passwordEncoder.encode(tempPassword));
-        userRepository.save(user);
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);
         message.setSubject("[학생관리시스템] 임시 비밀번호 안내");
         message.setText("임시 비밀번호: " + tempPassword + "\n로그인 후 비밀번호를 변경해주세요.");
         mailSender.send(message);
+
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        userRepository.save(user);
     }
 }

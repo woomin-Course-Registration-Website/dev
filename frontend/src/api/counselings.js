@@ -25,3 +25,7 @@ export const updateCounseling = (id, body) =>
 /** 상담 삭제 */
 export const deleteCounseling = (id) =>
   client.delete(`/counselings/${id}`).then((r) => r.data)
+
+/** STUDENT/PARENT용 — 해당 학생의 전체공개(shareScope=ALL) 상담 조회 */
+export const getPublicCounselings = (studentId) =>
+  client.get(`/students/${studentId}/counselings`).then((r) => r.data.data)
