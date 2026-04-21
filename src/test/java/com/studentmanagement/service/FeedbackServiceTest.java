@@ -31,6 +31,7 @@ class FeedbackServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock UserRepository userRepository;
     @Mock NotificationService notificationService;
+    @Mock StudentAccessService studentAccessService;
 
     @InjectMocks FeedbackService feedbackService;
 
@@ -55,22 +56,20 @@ class FeedbackServiceTest {
 
     @Test
     void getFeedbacks_whenRequesterIsTeacher_returnsAll() {
-        given(userRepository.findByEmail("teacher@test.com")).willReturn(Optional.of(teacher));
         given(feedbackRepository.findByStudentIdOrderByCreatedAtDesc(10L))
                 .willReturn(List.of(publicFeedback, privateFeedback));
 
-        List<FeedbackResponse> result = feedbackService.getFeedbacks(10L, "teacher@test.com");
+        List<FeedbackResponse> result = feedbackService.getFeedbacks(10L, "teacher@test.com", User.Role.TEACHER);
 
         assertThat(result).hasSize(2);
     }
 
     @Test
     void getFeedbacks_whenRequesterIsStudent_returnsOnlyPublic() {
-        given(userRepository.findByEmail("student@test.com")).willReturn(Optional.of(studentUser));
         given(feedbackRepository.findPublicByStudentId(10L))
                 .willReturn(List.of(publicFeedback));
 
-        List<FeedbackResponse> result = feedbackService.getFeedbacks(10L, "student@test.com");
+        List<FeedbackResponse> result = feedbackService.getFeedbacks(10L, "student@test.com", User.Role.STUDENT);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).isPublic()).isTrue();
@@ -78,22 +77,21 @@ class FeedbackServiceTest {
 
     @Test
     void getFeedbacks_whenRequesterIsParent_returnsOnlyPublic() {
-        User parent = TestFixtures.parentUser();
-        given(userRepository.findByEmail("parent@test.com")).willReturn(Optional.of(parent));
         given(feedbackRepository.findPublicByStudentId(10L))
                 .willReturn(List.of(publicFeedback));
 
-        List<FeedbackResponse> result = feedbackService.getFeedbacks(10L, "parent@test.com");
+        List<FeedbackResponse> result = feedbackService.getFeedbacks(10L, "parent@test.com", User.Role.PARENT);
 
         assertThat(result).hasSize(1);
     }
 
     @Test
-    void getFeedbacks_whenRequesterNotFound_throwsResourceNotFoundException() {
-        given(userRepository.findByEmail("unknown@test.com")).willReturn(Optional.empty());
+    void getFeedbacks_whenAccessDenied_throwsUnauthorizedException() {
+        willThrow(new UnauthorizedException("권한 없음"))
+                .given(studentAccessService).check(10L, "unknown@test.com", User.Role.STUDENT);
 
-        assertThatThrownBy(() -> feedbackService.getFeedbacks(10L, "unknown@test.com"))
-                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> feedbackService.getFeedbacks(10L, "unknown@test.com", User.Role.STUDENT))
+                .isInstanceOf(UnauthorizedException.class);
     }
 
     // ── create ────────────────────────────────────────────────────────
@@ -121,7 +119,7 @@ class FeedbackServiceTest {
 
         feedbackService.create(10L, req, "teacher@test.com");
 
-        verify(notificationService).send(isNull(), eq(Notification.Type.FEEDBACK), anyString());
+        verify(notificationService, never()).send(any(), any(), anyString());
     }
 
     @Test
@@ -138,6 +136,7 @@ class FeedbackServiceTest {
     @Test
     void update_whenAuthor_updatesFeedback() {
         given(feedbackRepository.findById(300L)).willReturn(Optional.of(publicFeedback));
+        given(feedbackRepository.save(any())).willReturn(publicFeedback);
         FeedbackRequest req = feedbackRequest();
 
         FeedbackResponse result = feedbackService.update(300L, req, "teacher@test.com");

@@ -31,6 +31,7 @@ class CounselingServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock UserRepository userRepository;
     @Mock NotificationService notificationService;
+    @Mock StudentAccessService studentAccessService;
 
     @InjectMocks CounselingService counselingService;
 
@@ -98,6 +99,7 @@ class CounselingServiceTest {
     @Test
     void update_whenAuthor_updatesFields() {
         given(counselingRepository.findById(400L)).willReturn(Optional.of(counseling));
+        given(counselingRepository.save(any())).willReturn(counseling);
         CounselingRequest req = counselingRequest(Counseling.ShareScope.PRIVATE);
 
         CounselingResponse result = counselingService.update(400L, req, "teacher@test.com");

@@ -34,6 +34,7 @@ class GradeServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock SubjectRepository subjectRepository;
     @Mock NotificationService notificationService;
+    @Mock StudentAccessService studentAccessService;
 
     @InjectMocks GradeService gradeService;
 
@@ -129,6 +130,7 @@ class GradeServiceTest {
     void update_whenGradeExists_recalculatesRank() {
         Grade existing = buildGrade(student, "85.00", "B");
         given(gradeRepository.findById(200L)).willReturn(Optional.of(existing));
+        given(gradeRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         stubAverageAndTotal();
 
         GradeResponse result = gradeService.update(200L, gradeRequest("95.00"));

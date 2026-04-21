@@ -118,6 +118,7 @@ class StudentServiceTest {
     @Test
     void update_whenExists_updatesAllFields() {
         given(studentRepository.findById(10L)).willReturn(Optional.of(student));
+        given(studentRepository.save(any(Student.class))).willAnswer(inv -> inv.getArgument(0));
         StudentRequest req = studentRequest("새이름", 3, 1, 10, null);
 
         StudentResponse result = studentService.update(10L, req);
