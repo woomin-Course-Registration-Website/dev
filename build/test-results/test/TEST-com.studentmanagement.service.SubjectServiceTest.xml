@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.studentmanagement.service.SubjectServiceTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-04-21T11:19:31" hostname="DESKTOP-J5HVA04" time="0.011">
-  <properties/>
-  <testcase name="getAll_returnsMappedResponses()" classname="com.studentmanagement.service.SubjectServiceTest" time="0.006"/>
-  <testcase name="create_whenNewName_savesAndReturns()" classname="com.studentmanagement.service.SubjectServiceTest" time="0.003"/>
-  <testcase name="create_whenDuplicateName_throwsIllegalArgumentException()" classname="com.studentmanagement.service.SubjectServiceTest" time="0.002"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
