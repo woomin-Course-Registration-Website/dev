@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.studentmanagement.service.NotificationServiceTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-04-21T11:19:29" hostname="DESKTOP-J5HVA04" time="0.087">
+  <properties/>
+  <testcase name="markAllAsRead_callsBulkUpdate()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.066"/>
+  <testcase name="markAsRead_whenNotificationNotFound_throwsResourceNotFoundException()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.002"/>
+  <testcase name="markAsRead_whenOwner_setsReadTrue()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.002"/>
+  <testcase name="getMyNotifications_returnsOrderedList()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.003"/>
+  <testcase name="markAsRead_whenNotOwner_throwsUnauthorizedException()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.003"/>
+  <testcase name="send_whenRecipientNotNull_savesNotification()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.002"/>
+  <testcase name="markAllAsRead_whenUserNotFound_throwsResourceNotFoundException()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.002"/>
+  <testcase name="send_whenRecipientIsNull_doesNotSave()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.001"/>
+  <testcase name="getMyNotifications_whenUserNotFound_throwsResourceNotFoundException()" classname="com.studentmanagement.service.NotificationServiceTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

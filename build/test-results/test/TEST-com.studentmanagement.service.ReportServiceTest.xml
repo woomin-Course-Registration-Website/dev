@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.studentmanagement.service.ReportServiceTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-04-21T11:19:29" hostname="DESKTOP-J5HVA04" time="1.898">
+  <properties/>
+  <testcase name="generatePdf_returnsNonEmptyByteArray()" classname="com.studentmanagement.service.ReportServiceTest" time="0.627"/>
+  <testcase name="getPreview_counselingReport_returnsCorrectColumns()" classname="com.studentmanagement.service.ReportServiceTest" time="0.01"/>
+  <testcase name="generateExcel_validWorkbookWithHeaderRow()" classname="com.studentmanagement.service.ReportServiceTest" time="1.203"/>
+  <testcase name="getPreview_feedbackReport_returnsCorrectColumns()" classname="com.studentmanagement.service.ReportServiceTest" time="0.005"/>
+  <testcase name="generateExcel_returnsNonEmptyByteArray()" classname="com.studentmanagement.service.ReportServiceTest" time="0.042"/>
+  <testcase name="getPreview_studentRecord_returnsCorrectColumns()" classname="com.studentmanagement.service.ReportServiceTest" time="0.002"/>
+  <testcase name="getPreview_gradeSummary_returnsCorrectColumns()" classname="com.studentmanagement.service.ReportServiceTest" time="0.003"/>
+  <system-out><![CDATA[2026-04-21T20:19:30.319+09:00  WARN 28944 --- [    Test worker] c.s.service.ReportService                : 한글 폰트를 찾을 수 없습니다. PDF에서 한글이 깨질 수 있습니다. (Docker 환경에서 실행하면 정상 출력됩니다)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

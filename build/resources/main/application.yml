@@ -37,6 +37,8 @@ jwt:
 cors:
   allowed-origins:
     - http://localhost:3000
+    - http://localhost:80
+    - http://localhost
 
 ---
 spring:
@@ -55,5 +57,5 @@ spring:
       on-profile: prod
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false

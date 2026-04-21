@@ -97,6 +97,7 @@ public class AuthController {
 
     @Operation(summary = "비밀번호 변경", description = "로그인 상태에서 현재 비밀번호를 확인 후 새 비밀번호로 변경합니다.")
     @PostMapping("/change-password")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<?> changePassword(Authentication auth,
                                             @Valid @RequestBody ChangePasswordRequest request) {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
-import { login as loginApi } from '../api/auth'
+import { login as loginApi, resetPassword } from '../api/auth'
 
 export default function Login() {
   const navigate  = useNavigate()
@@ -11,6 +11,11 @@ export default function Login() {
   const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
   const [shake, setShake]   = useState(false)
+
+  const [resetModal, setResetModal]   = useState(false)
+  const [resetEmail, setResetEmail]   = useState('')
+  const [resetMsg,   setResetMsg]     = useState(null)
+  const [resetLoading, setResetLoading] = useState(false)
 
   const handleChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
@@ -41,6 +46,21 @@ export default function Login() {
     setError(msg)
     setShake(true)
     setTimeout(() => setShake(false), 400)
+  }
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault()
+    setResetLoading(true)
+    setResetMsg(null)
+    try {
+      await resetPassword(resetEmail)
+      setResetMsg({ ok: true, text: '임시 비밀번호가 이메일로 발송되었습니다.' })
+    } catch (err) {
+      const msg = err?.response?.data?.message || '해당 이메일로 등록된 계정이 없습니다.'
+      setResetMsg({ ok: false, text: msg })
+    } finally {
+      setResetLoading(false)
+    }
   }
 
   return (
@@ -101,6 +121,16 @@ export default function Login() {
               </div>
             )}
 
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => { setResetModal(true); setResetEmail(''); setResetMsg(null) }}
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              >
+                비밀번호를 잊으셨나요?
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -132,6 +162,47 @@ export default function Login() {
           </Link>
         </div>
       </div>
+
+      {/* 비밀번호 재설정 모달 */}
+      {resetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-1">비밀번호 재설정</h3>
+            <p className="text-sm text-gray-500 mb-4">가입한 이메일을 입력하면 임시 비밀번호를 발송합니다.</p>
+            <form onSubmit={handleResetPassword} className="space-y-3">
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="input"
+                placeholder="이메일 주소"
+                required
+              />
+              {resetMsg && (
+                <p className={`text-sm font-medium ${resetMsg.ok ? 'text-green-600' : 'text-red-500'}`}>
+                  {resetMsg.text}
+                </p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setResetModal(false)}
+                  className="flex-1 btn-md btn-ghost"
+                >
+                  닫기
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="flex-1 btn-md btn-primary"
+                >
+                  {resetLoading ? '발송 중...' : '임시 비밀번호 발송'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
