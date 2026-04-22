@@ -56,8 +56,6 @@ jobs:
     needs: build-and-push
     # SSH 배포 서버가 있을 때만 활성화 — Secrets 설정 필요:
     # DEPLOY_HOST, DEPLOY_USER, DEPLOY_KEY, DOCKERHUB_USERNAME
-    # vars.DEPLOY_ENABLED 를 GitHub Repository Variables 에서 'true' 로 설정하면 활성화
-    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     environment: production
 
     steps:
