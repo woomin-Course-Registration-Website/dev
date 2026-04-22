@@ -7,8 +7,10 @@ import axios from 'axios'
  * - 401 응답 시 refreshToken으로 재발급을 시도하고 원래 요청을 재전송합니다.
  * - 재발급 실패 시 로그아웃 처리합니다.
  */
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -58,7 +60,7 @@ client.interceptors.response.use(
     }
 
     try {
-      const { data } = await axios.post('/api/auth/refresh', { refreshToken })
+      const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken })
       const newToken = data.accessToken
       localStorage.setItem('accessToken', newToken)
       localStorage.setItem('refreshToken', data.refreshToken)
