@@ -1,8 +1,10 @@
 package com.studentmanagement.controller;
 
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.student.ParentLinkRequest;
 import com.studentmanagement.dto.student.StudentRequest;
+import com.studentmanagement.service.CounselingService;
 import com.studentmanagement.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,9 +30,11 @@ import org.springframework.web.bind.annotation.*;
 public class StudentController {
 
     private final StudentService studentService;
+    private final CounselingService counselingService;
 
-    public StudentController(StudentService studentService) {
+    public StudentController(StudentService studentService, CounselingService counselingService) {
         this.studentService = studentService;
+        this.counselingService = counselingService;
     }
 
     @Operation(
@@ -133,5 +137,20 @@ public class StudentController {
             @Parameter(description = "학생 ID") @PathVariable Long id,
             @Parameter(description = "학부모 User ID") @PathVariable Long parentUserId) {
         return ResponseEntity.ok(ApiResponse.ok(studentService.unlinkParent(id, parentUserId)));
+    }
+
+    @Operation(summary = "학생/학부모용 공개 상담 조회",
+               description = "STUDENT/PARENT가 본인(또는 자녀)의 전체공개(shareScope=ALL) 상담만 조회합니다.")
+    @GetMapping("/{id}/counselings")
+    @PreAuthorize("hasAnyRole('STUDENT', 'PARENT')")
+    public ResponseEntity<?> getPublicCounselings(
+            @Parameter(description = "학생 ID") @PathVariable Long id,
+            Authentication auth) {
+        User.Role role = User.Role.valueOf(
+                auth.getAuthorities().stream().findFirst()
+                        .map(a -> a.getAuthority().replace("ROLE_", ""))
+                        .orElseThrow());
+        return ResponseEntity.ok(ApiResponse.ok(
+                counselingService.getPublicForStudent(id, auth.getName(), role)));
     }
 }

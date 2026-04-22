@@ -9,7 +9,10 @@
       "Bash(wc -l /c/project/softwareDesign/dev/frontend/src/pages/**/*.jsx /c/project/softwareDesign/dev/frontend/src/pages/*.jsx)",
       "Bash(grep -n \"sendResetPasswordEmail\\\\|NotificationService.*send\\\\|markAllAsRead\" /c/project/softwareDesign/dev/src/main/java/com/studentmanagement/service/*.java)",
       "Bash(xargs -I {} basename {})",
-      "Bash(xargs -I {} head -30 {})"
+      "Bash(xargs -I {} head -30 {})",
+      "Bash(./gradlew test *)",
+      "Bash(sed 's/.*testsuite //')",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

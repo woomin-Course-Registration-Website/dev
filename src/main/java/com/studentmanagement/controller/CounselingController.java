@@ -1,6 +1,5 @@
 package com.studentmanagement.controller;
 
-import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.counseling.CounselingRequest;
 import com.studentmanagement.service.CounselingService;
@@ -133,20 +132,4 @@ public class CounselingController {
         return ResponseEntity.ok(ApiResponse.ok(null, "상담 내역이 삭제되었습니다."));
     }
 
-    @Operation(
-        summary = "학생/학부모용 상담 조회",
-        description = "STUDENT/PARENT가 본인(또는 자녀)의 전체공개(shareScope=ALL) 상담만 조회합니다."
-    )
-    @GetMapping("/api/students/{studentId}/counselings")
-    @PreAuthorize("hasAnyRole('STUDENT', 'PARENT')")
-    public ResponseEntity<?> getPublicForStudent(
-            @Parameter(description = "학생 ID") @PathVariable Long studentId,
-            Authentication auth) {
-        User.Role role = User.Role.valueOf(
-                auth.getAuthorities().stream().findFirst()
-                        .map(a -> a.getAuthority().replace("ROLE_", ""))
-                        .orElseThrow());
-        return ResponseEntity.ok(ApiResponse.ok(
-                counselingService.getPublicForStudent(studentId, auth.getName(), role)));
-    }
 }
