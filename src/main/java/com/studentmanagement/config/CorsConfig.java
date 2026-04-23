@@ -35,7 +35,7 @@ public class CorsConfig {
     @Component
     @ConfigurationProperties(prefix = "cors")
     public static class CorsProperties {
-        private List<String> allowedOrigins = List.of("http://localhost:3000");
+        private List<String> allowedOrigins = List.of("*");
 
         public List<String> getAllowedOrigins() { return allowedOrigins; }
         public void setAllowedOrigins(List<String> allowedOrigins) { this.allowedOrigins = allowedOrigins; }
