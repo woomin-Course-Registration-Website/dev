@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -118,6 +118,7 @@ class StudentServiceTest {
     @Test
     void update_whenExists_updatesAllFields() {
         given(studentRepository.findById(10L)).willReturn(Optional.of(student));
+        given(studentRepository.save(any(Student.class))).willAnswer(inv -> inv.getArgument(0));
         StudentRequest req = studentRequest("새이름", 3, 1, 10, null);
 
         StudentResponse result = studentService.update(10L, req);
@@ -133,6 +134,100 @@ class StudentServiceTest {
 
         assertThatThrownBy(() -> studentService.update(999L, studentRequest("이름", 1, 1, 1, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ── getMyStudent ──────────────────────────────────────────────────
+
+    @Test
+    void getMyStudent_whenLinked_returnsStudentResponse() {
+        User studentUser = TestFixtures.studentUser();
+        given(userRepository.findByEmail("student@test.com")).willReturn(Optional.of(studentUser));
+        given(studentRepository.findByUserId(2L)).willReturn(Optional.of(student));
+
+        StudentResponse result = studentService.getMyStudent("student@test.com");
+
+        assertThat(result.getName()).isEqualTo("홍길동");
+    }
+
+    @Test
+    void getMyStudent_whenNoLinkedStudent_throwsResourceNotFoundException() {
+        User studentUser = TestFixtures.studentUser();
+        given(userRepository.findByEmail("student@test.com")).willReturn(Optional.of(studentUser));
+        given(studentRepository.findByUserId(2L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> studentService.getMyStudent("student@test.com"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ── getMyChildren ─────────────────────────────────────────────────
+
+    @Test
+    void getMyChildren_whenParentHasChildren_returnsChildren() {
+        User parentUser = TestFixtures.parentUser();
+        given(userRepository.findByEmail("parent@test.com")).willReturn(Optional.of(parentUser));
+        given(studentRepository.findByParentId(3L)).willReturn(List.of(student));
+
+        List<StudentResponse> result = studentService.getMyChildren("parent@test.com");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getName()).isEqualTo("홍길동");
+    }
+
+    @Test
+    void getMyChildren_whenNoChildren_returnsEmptyList() {
+        User parentUser = TestFixtures.parentUser();
+        given(userRepository.findByEmail("parent@test.com")).willReturn(Optional.of(parentUser));
+        given(studentRepository.findByParentId(3L)).willReturn(List.of());
+
+        List<StudentResponse> result = studentService.getMyChildren("parent@test.com");
+
+        assertThat(result).isEmpty();
+    }
+
+    // ── linkParent ────────────────────────────────────────────────────
+
+    @Test
+    void linkParent_whenValidParentUser_addsAndReturns() {
+        User parentUser = TestFixtures.parentUser();
+        given(studentRepository.findById(10L)).willReturn(Optional.of(student));
+        given(userRepository.findById(3L)).willReturn(Optional.of(parentUser));
+        given(studentRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        StudentResponse result = studentService.linkParent(10L, 3L);
+
+        assertThat(result).isNotNull();
+        assertThat(student.getParents()).contains(parentUser);
+    }
+
+    @Test
+    void linkParent_whenUserIsNotParentRole_throwsIllegalArgumentException() {
+        given(studentRepository.findById(10L)).willReturn(Optional.of(student));
+        given(userRepository.findById(1L)).willReturn(Optional.of(teacher));
+
+        assertThatThrownBy(() -> studentService.linkParent(10L, 1L))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void linkParent_whenStudentNotFound_throwsResourceNotFoundException() {
+        given(studentRepository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> studentService.linkParent(999L, 3L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ── unlinkParent ──────────────────────────────────────────────────
+
+    @Test
+    void unlinkParent_whenLinked_removesParent() {
+        User parentUser = TestFixtures.parentUser();
+        student.getParents().add(parentUser);
+        given(studentRepository.findById(10L)).willReturn(Optional.of(student));
+        given(studentRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        studentService.unlinkParent(10L, 3L);
+
+        assertThat(student.getParents()).doesNotContain(parentUser);
     }
 
     // ── helpers ───────────────────────────────────────────────────────

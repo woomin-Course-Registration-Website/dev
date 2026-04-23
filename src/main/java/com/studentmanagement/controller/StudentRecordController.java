@@ -1,5 +1,6 @@
 package com.studentmanagement.controller;
 
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.record.StudentRecordRequest;
 import com.studentmanagement.service.StudentRecordService;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -42,8 +44,13 @@ public class StudentRecordController {
     @GetMapping
     @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT', 'PARENT')")
     public ResponseEntity<?> getRecord(
-            @Parameter(description = "학생 ID") @PathVariable Long studentId) {
-        return ResponseEntity.ok(ApiResponse.ok(recordService.getRecord(studentId)));
+            @Parameter(description = "학생 ID") @PathVariable Long studentId,
+            Authentication auth) {
+        User.Role role = User.Role.valueOf(
+                auth.getAuthorities().stream().findFirst()
+                        .map(a -> a.getAuthority().replace("ROLE_", ""))
+                        .orElseThrow());
+        return ResponseEntity.ok(ApiResponse.ok(recordService.getRecord(studentId, auth.getName(), role)));
     }
 
     @Operation(

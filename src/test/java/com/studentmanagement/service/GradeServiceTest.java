@@ -34,6 +34,7 @@ class GradeServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock SubjectRepository subjectRepository;
     @Mock NotificationService notificationService;
+    @Mock StudentAccessService studentAccessService;
 
     @InjectMocks GradeService gradeService;
 
@@ -48,6 +49,46 @@ class GradeServiceTest {
         student       = TestFixtures.student(studentUser);
         orphanStudent = TestFixtures.studentNoUser();
         subject       = TestFixtures.subject();
+    }
+
+    // ── getGrades ─────────────────────────────────────────────────────
+
+    @Test
+    void getGrades_whenTeacher_returnsGradesWithoutAccessCheck() {
+        Grade grade = buildGrade(student, "85.00", "B");
+        given(gradeRepository.findByStudentAndFilters(10L, null, null, null))
+                .willReturn(List.of(grade));
+        stubAverageAndTotal();
+
+        List<GradeResponse> result = gradeService.getGrades(10L, null, null, null,
+                "teacher@test.com", User.Role.TEACHER);
+
+        assertThat(result).hasSize(1);
+        verify(studentAccessService).check(10L, "teacher@test.com", User.Role.TEACHER);
+    }
+
+    @Test
+    void getGrades_whenStudent_callsAccessCheckAndReturnsGrades() {
+        Grade grade = buildGrade(student, "85.00", "B");
+        given(gradeRepository.findByStudentAndFilters(10L, null, null, null))
+                .willReturn(List.of(grade));
+        stubAverageAndTotal();
+
+        List<GradeResponse> result = gradeService.getGrades(10L, null, null, null,
+                "student@test.com", User.Role.STUDENT);
+
+        assertThat(result).hasSize(1);
+        verify(studentAccessService).check(10L, "student@test.com", User.Role.STUDENT);
+    }
+
+    @Test
+    void getGrades_whenAccessDenied_throwsUnauthorizedException() {
+        willThrow(new com.studentmanagement.exception.UnauthorizedException("권한 없음"))
+                .given(studentAccessService).check(10L, "other@test.com", User.Role.STUDENT);
+
+        assertThatThrownBy(() -> gradeService.getGrades(10L, null, null, null,
+                "other@test.com", User.Role.STUDENT))
+                .isInstanceOf(com.studentmanagement.exception.UnauthorizedException.class);
     }
 
     // ── create ────────────────────────────────────────────────────────
@@ -129,6 +170,7 @@ class GradeServiceTest {
     void update_whenGradeExists_recalculatesRank() {
         Grade existing = buildGrade(student, "85.00", "B");
         given(gradeRepository.findById(200L)).willReturn(Optional.of(existing));
+        given(gradeRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         stubAverageAndTotal();
 
         GradeResponse result = gradeService.update(200L, gradeRequest("95.00"));

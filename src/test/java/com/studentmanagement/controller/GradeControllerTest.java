@@ -5,7 +5,6 @@ import com.studentmanagement.config.SecurityConfig;
 import com.studentmanagement.domain.Grade;
 import com.studentmanagement.domain.Subject;
 import com.studentmanagement.dto.grade.GradeResponse;
-import com.studentmanagement.dto.grade.GradeStatsItem;
 import com.studentmanagement.fixture.TestFixtures;
 import com.studentmanagement.exception.ResourceNotFoundException;
 import com.studentmanagement.fixture.SecurityTestHelper;
@@ -20,7 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import static com.studentmanagement.fixture.SecurityTestHelper.FAKE_TOKEN;
@@ -48,7 +46,7 @@ class GradeControllerTest {
     @Test
     void getGrades_teacher_returns200() throws Exception {
         SecurityTestHelper.stubAsTeacher(jwtUtil);
-        given(gradeService.getGrades(anyLong(), any(), any(), any())).willReturn(List.of());
+        given(gradeService.getGrades(anyLong(), any(), any(), any(), anyString(), any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/students/10/grades")
                 .header("Authorization", FAKE_TOKEN))
@@ -58,7 +56,7 @@ class GradeControllerTest {
     @Test
     void getGrades_student_returns200() throws Exception {
         SecurityTestHelper.stubAsStudent(jwtUtil);
-        given(gradeService.getGrades(anyLong(), any(), any(), any())).willReturn(List.of());
+        given(gradeService.getGrades(anyLong(), any(), any(), any(), anyString(), any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/students/10/grades")
                 .header("Authorization", FAKE_TOKEN))
@@ -68,7 +66,7 @@ class GradeControllerTest {
     @Test
     void getGrades_parent_returns200() throws Exception {
         SecurityTestHelper.stubAsParent(jwtUtil);
-        given(gradeService.getGrades(anyLong(), any(), any(), any())).willReturn(List.of());
+        given(gradeService.getGrades(anyLong(), any(), any(), any(), anyString(), any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/students/10/grades")
                 .header("Authorization", FAKE_TOKEN))

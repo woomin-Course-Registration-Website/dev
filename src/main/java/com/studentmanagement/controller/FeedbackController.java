@@ -1,5 +1,6 @@
 package com.studentmanagement.controller;
 
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.feedback.FeedbackRequest;
 import com.studentmanagement.service.FeedbackService;
@@ -51,7 +52,11 @@ public class FeedbackController {
     public ResponseEntity<?> getFeedbacks(
             @Parameter(description = "학생 ID") @PathVariable Long studentId,
             Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.ok(feedbackService.getFeedbacks(studentId, auth.getName())));
+        User.Role role = User.Role.valueOf(
+                auth.getAuthorities().stream().findFirst()
+                        .map(a -> a.getAuthority().replace("ROLE_", ""))
+                        .orElseThrow());
+        return ResponseEntity.ok(ApiResponse.ok(feedbackService.getFeedbacks(studentId, auth.getName(), role)));
     }
 
     @Operation(

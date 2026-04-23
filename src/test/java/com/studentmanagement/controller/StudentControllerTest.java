@@ -2,10 +2,12 @@ package com.studentmanagement.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studentmanagement.config.SecurityConfig;
+import com.studentmanagement.dto.counseling.CounselingResponse;
 import com.studentmanagement.dto.student.StudentResponse;
 import com.studentmanagement.exception.ResourceNotFoundException;
 import com.studentmanagement.fixture.SecurityTestHelper;
 import com.studentmanagement.fixture.TestFixtures;
+import com.studentmanagement.service.CounselingService;
 import com.studentmanagement.service.StudentService;
 import com.studentmanagement.util.JwtUtil;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,7 @@ class StudentControllerTest {
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @MockBean  StudentService studentService;
+    @MockBean  CounselingService counselingService;
     @MockBean  JwtUtil jwtUtil;
 
     // ── getAll ────────────────────────────────────────────────────────
@@ -150,5 +153,124 @@ class StudentControllerTest {
                     {"name":"이름","grade":1,"classNum":1,"studentNum":1}
                     """))
                 .andExpect(status().isNotFound());
+    }
+
+    // ── getMe ─────────────────────────────────────────────────────────
+
+    @Test
+    void getMe_student_returns200() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+        StudentResponse resp = new StudentResponse(TestFixtures.student(TestFixtures.studentUser()));
+        given(studentService.getMyStudent(anyString())).willReturn(resp);
+
+        mockMvc.perform(get("/api/students/me").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getMe_teacher_returns403() throws Exception {
+        SecurityTestHelper.stubAsTeacher(jwtUtil);
+
+        mockMvc.perform(get("/api/students/me").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── getMyChildren ─────────────────────────────────────────────────
+
+    @Test
+    void getMyChildren_parent_returns200() throws Exception {
+        SecurityTestHelper.stubAsParent(jwtUtil);
+        given(studentService.getMyChildren(anyString())).willReturn(List.of());
+
+        mockMvc.perform(get("/api/students/my-children").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getMyChildren_teacher_returns403() throws Exception {
+        SecurityTestHelper.stubAsTeacher(jwtUtil);
+
+        mockMvc.perform(get("/api/students/my-children").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── linkParent ────────────────────────────────────────────────────
+
+    @Test
+    void linkParent_teacher_returns200() throws Exception {
+        SecurityTestHelper.stubAsTeacher(jwtUtil);
+        StudentResponse resp = new StudentResponse(TestFixtures.student(TestFixtures.studentUser()));
+        given(studentService.linkParent(anyLong(), anyLong())).willReturn(resp);
+
+        mockMvc.perform(post("/api/students/10/parents")
+                .header("Authorization", FAKE_TOKEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"parentUserId":3}
+                    """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void linkParent_student_returns403() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+
+        mockMvc.perform(post("/api/students/10/parents")
+                .header("Authorization", FAKE_TOKEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"parentUserId":3}
+                    """))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── unlinkParent ──────────────────────────────────────────────────
+
+    @Test
+    void unlinkParent_teacher_returns200() throws Exception {
+        SecurityTestHelper.stubAsTeacher(jwtUtil);
+        StudentResponse resp = new StudentResponse(TestFixtures.student(TestFixtures.studentUser()));
+        given(studentService.unlinkParent(anyLong(), anyLong())).willReturn(resp);
+
+        mockMvc.perform(delete("/api/students/10/parents/3")
+                .header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void unlinkParent_student_returns403() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+
+        mockMvc.perform(delete("/api/students/10/parents/3")
+                .header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isForbidden());
+    }
+
+    // ── getPublicCounselings ──────────────────────────────────────────
+
+    @Test
+    void getPublicCounselings_student_returns200() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+        given(counselingService.getPublicForStudent(anyLong(), anyString(), any())).willReturn(List.of());
+
+        mockMvc.perform(get("/api/students/10/counselings").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getPublicCounselings_parent_returns200() throws Exception {
+        SecurityTestHelper.stubAsParent(jwtUtil);
+        given(counselingService.getPublicForStudent(anyLong(), anyString(), any())).willReturn(List.of());
+
+        mockMvc.perform(get("/api/students/10/counselings").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getPublicCounselings_teacher_returns403() throws Exception {
+        SecurityTestHelper.stubAsTeacher(jwtUtil);
+
+        mockMvc.perform(get("/api/students/10/counselings").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isForbidden());
     }
 }

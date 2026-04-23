@@ -131,4 +131,5 @@ public class CounselingController {
         counselingService.delete(id, auth.getName());
         return ResponseEntity.ok(ApiResponse.ok(null, "상담 내역이 삭제되었습니다."));
     }
+
 }

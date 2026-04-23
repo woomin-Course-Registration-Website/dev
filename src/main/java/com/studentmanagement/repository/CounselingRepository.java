@@ -20,4 +20,8 @@ public interface CounselingRepository extends JpaRepository<Counseling, Long> {
                                    @Param("teacherId") Long teacherId,
                                    @Param("from") LocalDate from,
                                    @Param("to") LocalDate to);
+
+    @Query("SELECT c FROM Counseling c JOIN FETCH c.student JOIN FETCH c.teacher " +
+           "WHERE c.student.id = :studentId AND c.shareScope = 'ALL' ORDER BY c.date DESC")
+    List<Counseling> findPublicByStudentId(@Param("studentId") Long studentId);
 }

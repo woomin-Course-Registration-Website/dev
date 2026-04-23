@@ -44,7 +44,7 @@ class FeedbackControllerTest {
     @Test
     void getFeedbacks_teacher_returns200() throws Exception {
         SecurityTestHelper.stubAsTeacher(jwtUtil);
-        given(feedbackService.getFeedbacks(anyLong(), anyString())).willReturn(List.of());
+        given(feedbackService.getFeedbacks(anyLong(), anyString(), any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/students/10/feedbacks").header("Authorization", FAKE_TOKEN))
                 .andExpect(status().isOk());
@@ -53,7 +53,7 @@ class FeedbackControllerTest {
     @Test
     void getFeedbacks_student_returns200() throws Exception {
         SecurityTestHelper.stubAsStudent(jwtUtil);
-        given(feedbackService.getFeedbacks(anyLong(), anyString())).willReturn(List.of());
+        given(feedbackService.getFeedbacks(anyLong(), anyString(), any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/students/10/feedbacks").header("Authorization", FAKE_TOKEN))
                 .andExpect(status().isOk());
@@ -62,7 +62,7 @@ class FeedbackControllerTest {
     @Test
     void getFeedbacks_parent_returns200() throws Exception {
         SecurityTestHelper.stubAsParent(jwtUtil);
-        given(feedbackService.getFeedbacks(anyLong(), anyString())).willReturn(List.of());
+        given(feedbackService.getFeedbacks(anyLong(), anyString(), any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/students/10/feedbacks").header("Authorization", FAKE_TOKEN))
                 .andExpect(status().isOk());

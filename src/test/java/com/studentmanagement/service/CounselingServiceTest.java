@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -31,6 +32,7 @@ class CounselingServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock UserRepository userRepository;
     @Mock NotificationService notificationService;
+    @Mock StudentAccessService studentAccessService;
 
     @InjectMocks CounselingService counselingService;
 
@@ -45,6 +47,40 @@ class CounselingServiceTest {
         studentUser = TestFixtures.studentUser();
         student     = TestFixtures.student(studentUser);
         counseling  = TestFixtures.counseling(teacher, student);
+    }
+
+    // ── getPublicForStudent ───────────────────────────────────────────
+
+    @Test
+    void getPublicForStudent_whenStudent_returnsPublicCounselings() {
+        given(counselingRepository.findPublicByStudentId(10L)).willReturn(List.of(counseling));
+
+        List<CounselingResponse> result = counselingService.getPublicForStudent(
+                10L, "student@test.com", User.Role.STUDENT);
+
+        assertThat(result).hasSize(1);
+        verify(studentAccessService).check(10L, "student@test.com", User.Role.STUDENT);
+    }
+
+    @Test
+    void getPublicForStudent_whenParent_returnsPublicCounselings() {
+        given(counselingRepository.findPublicByStudentId(10L)).willReturn(List.of(counseling));
+
+        List<CounselingResponse> result = counselingService.getPublicForStudent(
+                10L, "parent@test.com", User.Role.PARENT);
+
+        assertThat(result).hasSize(1);
+        verify(studentAccessService).check(10L, "parent@test.com", User.Role.PARENT);
+    }
+
+    @Test
+    void getPublicForStudent_whenAccessDenied_throwsUnauthorizedException() {
+        willThrow(new com.studentmanagement.exception.UnauthorizedException("권한 없음"))
+                .given(studentAccessService).check(10L, "other@test.com", User.Role.STUDENT);
+
+        assertThatThrownBy(() -> counselingService.getPublicForStudent(
+                10L, "other@test.com", User.Role.STUDENT))
+                .isInstanceOf(com.studentmanagement.exception.UnauthorizedException.class);
     }
 
     // ── create ────────────────────────────────────────────────────────
@@ -98,6 +134,7 @@ class CounselingServiceTest {
     @Test
     void update_whenAuthor_updatesFields() {
         given(counselingRepository.findById(400L)).willReturn(Optional.of(counseling));
+        given(counselingRepository.save(any())).willReturn(counseling);
         CounselingRequest req = counselingRequest(Counseling.ShareScope.PRIVATE);
 
         CounselingResponse result = counselingService.update(400L, req, "teacher@test.com");

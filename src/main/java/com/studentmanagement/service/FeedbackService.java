@@ -32,32 +32,31 @@ public class FeedbackService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final StudentAccessService studentAccessService;
 
     public FeedbackService(FeedbackRepository feedbackRepository,
                            StudentRepository studentRepository,
                            UserRepository userRepository,
-                           NotificationService notificationService) {
+                           NotificationService notificationService,
+                           StudentAccessService studentAccessService) {
         this.feedbackRepository = feedbackRepository;
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.studentAccessService = studentAccessService;
     }
 
     /**
      * 피드백 목록 조회
-     *
-     * requesterEmail로 JWT의 subject(이메일)를 전달받아 역할을 판별합니다.
-     * TEACHER이면 전체, 그 외에는 공개 피드백만 반환합니다.
+     * TEACHER는 공개+비공개 전체, STUDENT/PARENT는 공개 피드백만 반환합니다.
+     * STUDENT/PARENT는 소유권(본인 또는 연동된 자녀) 검증 후 조회합니다.
      */
-    public List<FeedbackResponse> getFeedbacks(Long studentId, String requesterEmail) {
-        User requester = userRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
-
-        if (requester.getRole() == User.Role.TEACHER) {
+    public List<FeedbackResponse> getFeedbacks(Long studentId, String requesterEmail, User.Role role) {
+        if (role == User.Role.TEACHER) {
             return feedbackRepository.findByStudentIdOrderByCreatedAtDesc(studentId)
                     .stream().map(FeedbackResponse::new).toList();
         }
-        // STUDENT / PARENT는 공개 피드백만 조회
+        studentAccessService.check(studentId, requesterEmail, role);
         return feedbackRepository.findPublicByStudentId(studentId)
                 .stream().map(FeedbackResponse::new).toList();
     }
@@ -81,11 +80,13 @@ public class FeedbackService {
         feedback.setPublic(request.isPublic());
 
         FeedbackResponse response = new FeedbackResponse(feedbackRepository.save(feedback));
-        notificationService.send(
-                student.getUser(),
-                Notification.Type.FEEDBACK,
-                teacher.getName() + " 선생님이 피드백을 남겼습니다."
-        );
+        if (request.isPublic() && student.getUser() != null) {
+            notificationService.send(
+                    student.getUser(),
+                    Notification.Type.FEEDBACK,
+                    teacher.getName() + " 선생님이 피드백을 남겼습니다."
+            );
+        }
         return response;
     }
 
@@ -107,7 +108,7 @@ public class FeedbackService {
         feedback.setCategory(request.getCategory());
         feedback.setContent(request.getContent());
         feedback.setPublic(request.isPublic());
-        return new FeedbackResponse(feedback);
+        return new FeedbackResponse(feedbackRepository.save(feedback));
     }
 
     /**

@@ -80,7 +80,48 @@ public class StudentService {
                     .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
             student.setUser(user);
         }
+        return new StudentResponse(studentRepository.save(student));
+    }
+
+    /** 현재 로그인한 STUDENT 사용자에 연동된 학생 정보 조회 */
+    public StudentResponse getMyStudent(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        Student student = studentRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("연동된 학생 정보가 없습니다."));
         return new StudentResponse(student);
+    }
+
+    /** 현재 로그인한 PARENT 사용자의 자녀 목록 조회 */
+    public List<StudentResponse> getMyChildren(String email) {
+        User parent = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        return studentRepository.findByParentId(parent.getId())
+                .stream().map(StudentResponse::new).toList();
+    }
+
+    /**
+     * 학생에 학부모 계정 연동 (교사 전용)
+     * parentUserId는 PARENT 역할의 User ID여야 합니다.
+     */
+    @Transactional
+    public StudentResponse linkParent(Long studentId, Long parentUserId) {
+        Student student = findStudent(studentId);
+        User parent = userRepository.findById(parentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        if (parent.getRole() != User.Role.PARENT) {
+            throw new IllegalArgumentException("PARENT 역할의 계정만 연동할 수 있습니다.");
+        }
+        student.getParents().add(parent);
+        return new StudentResponse(studentRepository.save(student));
+    }
+
+    /** 학생에서 학부모 계정 연동 해제 (교사 전용) */
+    @Transactional
+    public StudentResponse unlinkParent(Long studentId, Long parentUserId) {
+        Student student = findStudent(studentId);
+        student.getParents().removeIf(p -> p.getId().equals(parentUserId));
+        return new StudentResponse(studentRepository.save(student));
     }
 
     /** 학생 ID로 엔티티를 조회하는 공통 메서드 */

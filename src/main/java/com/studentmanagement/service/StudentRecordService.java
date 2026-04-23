@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.StudentRecord;
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.record.StudentRecordRequest;
 import com.studentmanagement.dto.record.StudentRecordResponse;
 import com.studentmanagement.exception.ResourceNotFoundException;
@@ -27,21 +28,24 @@ public class StudentRecordService {
     private final StudentRecordRepository recordRepository;
     private final StudentRepository studentRepository;
     private final ObjectMapper objectMapper;  // Spring Boot 자동 구성 빈 사용
+    private final StudentAccessService studentAccessService;
 
     public StudentRecordService(StudentRecordRepository recordRepository,
                                 StudentRepository studentRepository,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                StudentAccessService studentAccessService) {
         this.recordRepository = recordRepository;
         this.studentRepository = studentRepository;
         this.objectMapper = objectMapper;
+        this.studentAccessService = studentAccessService;
     }
 
     /**
      * 학생부 조회
-     *
-     * @throws ResourceNotFoundException 학생부 레코드가 아직 생성되지 않은 경우
+     * STUDENT는 본인, PARENT는 연동된 자녀만 조회 가능합니다.
      */
-    public StudentRecordResponse getRecord(Long studentId) {
+    public StudentRecordResponse getRecord(Long studentId, String requesterEmail, User.Role role) {
+        studentAccessService.check(studentId, requesterEmail, role);
         StudentRecord record = recordRepository.findByStudentId(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생부를 찾을 수 없습니다."));
         return new StudentRecordResponse(record);

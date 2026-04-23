@@ -3,6 +3,7 @@ package com.studentmanagement.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.StudentRecord;
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.record.StudentRecordRequest;
 import com.studentmanagement.dto.record.StudentRecordResponse;
 import com.studentmanagement.exception.ResourceNotFoundException;
@@ -29,6 +30,7 @@ class StudentRecordServiceTest {
 
     @Mock StudentRecordRepository recordRepository;
     @Mock StudentRepository studentRepository;
+    @Mock StudentAccessService studentAccessService;
     @Spy  ObjectMapper objectMapper;
 
     @InjectMocks StudentRecordService studentRecordService;
@@ -50,7 +52,7 @@ class StudentRecordServiceTest {
     void getRecord_whenExists_returnsResponse() {
         given(recordRepository.findByStudentId(10L)).willReturn(Optional.of(record));
 
-        StudentRecordResponse result = studentRecordService.getRecord(10L);
+        StudentRecordResponse result = studentRecordService.getRecord(10L, "teacher@test.com", User.Role.TEACHER);
 
         assertThat(result).isNotNull();
     }
@@ -59,7 +61,7 @@ class StudentRecordServiceTest {
     void getRecord_whenNotFound_throwsResourceNotFoundException() {
         given(recordRepository.findByStudentId(999L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> studentRecordService.getRecord(999L))
+        assertThatThrownBy(() -> studentRecordService.getRecord(999L, "teacher@test.com", User.Role.TEACHER))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

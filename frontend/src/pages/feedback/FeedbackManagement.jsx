@@ -1,69 +1,85 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getStudents } from '../../api/students'
+import { getStudents, getMyStudent, getMyChildren } from '../../api/students'
 import { getFeedbacks, createFeedback, updateFeedback, deleteFeedback } from '../../api/feedbacks'
+import useAuthStore from '../../store/authStore'
 
-// 백엔드 enum ↔ 한국어 변환
 const CATEGORY_MAP     = { GRADE: '성적', BEHAVIOR: '행동', ATTENDANCE: '출결', ATTITUDE: '태도', OTHER: '기타' }
 const CATEGORY_REVERSE = { '성적': 'GRADE', '행동': 'BEHAVIOR', '출결': 'ATTENDANCE', '태도': 'ATTITUDE', '기타': 'OTHER' }
 const catColor         = { 성적: 'badge-blue', 행동: 'badge-green', 태도: 'badge-purple', 출결: 'badge-amber', 기타: 'badge-gray' }
 const CATEGORIES       = ['전체', '성적', '행동', '태도', '출결', '기타']
+const EMPTY_FORM       = { studentId: '', category: '성적', content: '', isPublic: false }
 
-const EMPTY_FORM = { studentId: '', category: '성적', content: '', isPublic: false }
+// 피드백 카드 (읽기 전용)
+function FeedbackCard({ f, studentName, onToggle, onEdit, onDelete, editable }) {
+  const catKo = CATEGORY_MAP[f.category] || f.category
+  return (
+    <div className="card p-5">
+      <div className="flex items-start justify-between gap-3 mb-2.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
+            {(f.studentName || studentName || '?')[0]}
+          </div>
+          <span className="font-semibold text-gray-900 text-sm">{f.studentName || studentName}</span>
+          <span className={`badge ${catColor[catKo] || 'badge-gray'}`}>{catKo}</span>
+          <span className="text-xs text-gray-400">{f.createdAt?.slice(0, 10)}</span>
+          <span className="text-xs text-gray-400">· {f.teacherName}</span>
+        </div>
+        {editable ? (
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => onToggle(f)}
+              className={`badge cursor-pointer transition-colors ${f.isPublic ? 'badge-green' : 'badge-gray'}`}
+            >
+              {f.isPublic ? '공개' : '비공개'}
+            </button>
+            <button onClick={() => onEdit(f)} className="btn-sm btn-ghost px-2 text-xs">수정</button>
+            <button onClick={() => onDelete(f.id)} className="btn-sm text-red-500 hover:bg-red-50 rounded-md px-2 text-xs font-medium transition-colors">삭제</button>
+          </div>
+        ) : (
+          <span className={`badge ${f.isPublic ? 'badge-green' : 'badge-gray'}`}>공개</span>
+        )}
+      </div>
+      <p className="text-sm text-gray-700 leading-relaxed">{f.content}</p>
+    </div>
+  )
+}
 
-export default function FeedbackManagement() {
-  const [students,   setStudents]   = useState([])
-  const [feedbacks,  setFeedbacks]  = useState([])
-  const [loading,    setLoading]    = useState(false)
-  const [catFilter,  setCatFilter]  = useState('전체')
-  const [pubFilter,  setPubFilter]  = useState('전체')
-  const [studentFilter, setStudentFilter] = useState('')  // studentId로 필터
-  const [modal,      setModal]      = useState(false)
-  const [editTarget, setEditTarget] = useState(null)      // 수정 중인 feedback 객체
-  const [form,       setForm]       = useState(EMPTY_FORM)
-  const [saving,     setSaving]     = useState(false)
-  const [deleteId,   setDeleteId]   = useState(null)
+// 교사용 뷰 (전체 관리)
+function TeacherFeedbackView() {
+  const [students,      setStudents]      = useState([])
+  const [feedbacks,     setFeedbacks]     = useState([])
+  const [loading,       setLoading]       = useState(false)
+  const [catFilter,     setCatFilter]     = useState('전체')
+  const [pubFilter,     setPubFilter]     = useState('전체')
+  const [studentFilter, setStudentFilter] = useState('')
+  const [modal,         setModal]         = useState(false)
+  const [editTarget,    setEditTarget]    = useState(null)
+  const [form,          setForm]          = useState(EMPTY_FORM)
+  const [saving,        setSaving]        = useState(false)
+  const [deleteId,      setDeleteId]      = useState(null)
 
-  // 학생 목록 로드
   useEffect(() => {
     getStudents().then((data) => setStudents(data || [])).catch(() => {})
   }, [])
 
-  // 선택된 학생의 피드백 로드
   const loadFeedbacks = useCallback(async (sid) => {
     if (!sid) { setFeedbacks([]); return }
     setLoading(true)
-    try {
-      const data = await getFeedbacks(sid)
-      setFeedbacks(data || [])
-    } catch {
-      setFeedbacks([])
-    } finally {
-      setLoading(false)
-    }
+    try { setFeedbacks((await getFeedbacks(sid)) || []) }
+    catch { setFeedbacks([]) }
+    finally { setLoading(false) }
   }, [])
 
   useEffect(() => { loadFeedbacks(studentFilter) }, [studentFilter, loadFeedbacks])
 
-  // 필터링
   const filtered = feedbacks
     .filter((f) => catFilter === '전체' || CATEGORY_MAP[f.category] === catFilter)
     .filter((f) => pubFilter === '전체' || (pubFilter === '공개' ? f.isPublic : !f.isPublic))
 
-  // 작성/수정 모달 열기
-  const openCreate = () => {
-    setEditTarget(null)
-    setForm({ ...EMPTY_FORM, studentId: studentFilter })
-    setModal(true)
-  }
-
-  const openEdit = (f) => {
+  const openCreate = () => { setEditTarget(null); setForm({ ...EMPTY_FORM, studentId: studentFilter }); setModal(true) }
+  const openEdit   = (f) => {
     setEditTarget(f)
-    setForm({
-      studentId: String(f.studentId),
-      category: CATEGORY_MAP[f.category] || '기타',
-      content: f.content,
-      isPublic: f.isPublic,
-    })
+    setForm({ studentId: String(f.studentId), category: CATEGORY_MAP[f.category] || '기타', content: f.content, isPublic: f.isPublic })
     setModal(true)
   }
 
@@ -71,24 +87,11 @@ export default function FeedbackManagement() {
     if (!form.studentId || !form.content) return
     setSaving(true)
     try {
-      const body = {
-        category: CATEGORY_REVERSE[form.category] || 'OTHER',
-        content:  form.content,
-        isPublic: form.isPublic,
-      }
-      if (editTarget) {
-        await updateFeedback(editTarget.id, body)
-      } else {
-        await createFeedback(form.studentId, body)
-      }
-      setModal(false)
-      setForm(EMPTY_FORM)
-      setEditTarget(null)
-      // 현재 선택된 학생 피드백 새로고침
+      const body = { category: CATEGORY_REVERSE[form.category] || 'OTHER', content: form.content, isPublic: form.isPublic }
+      editTarget ? await updateFeedback(editTarget.id, body) : await createFeedback(form.studentId, body)
+      setModal(false); setForm(EMPTY_FORM); setEditTarget(null)
       await loadFeedbacks(studentFilter || form.studentId)
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const handleDelete = async (id) => {
@@ -98,11 +101,7 @@ export default function FeedbackManagement() {
   }
 
   const handleTogglePublic = async (f) => {
-    await updateFeedback(f.id, {
-      category: f.category,
-      content:  f.content,
-      isPublic: !f.isPublic,
-    }).catch(() => {})
+    await updateFeedback(f.id, { category: f.category, content: f.content, isPublic: !f.isPublic }).catch(() => {})
     await loadFeedbacks(studentFilter)
   }
 
@@ -110,7 +109,6 @@ export default function FeedbackManagement() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* 헤더 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">피드백 관리</h1>
         <button onClick={openCreate} className="btn-md btn-primary gap-2">
@@ -121,42 +119,26 @@ export default function FeedbackManagement() {
         </button>
       </div>
 
-      {/* 필터 */}
       <div className="card p-4 flex flex-wrap gap-3 items-center">
-        {/* 학생 선택 */}
-        <select
-          value={studentFilter}
-          onChange={(e) => setStudentFilter(e.target.value)}
-          className="input w-40 h-9 py-1.5"
-        >
+        <select value={studentFilter} onChange={(e) => setStudentFilter(e.target.value)} className="input w-40 h-9 py-1.5">
           <option value="">학생 선택</option>
           {students.map((s) => (
             <option key={s.id} value={s.id}>{s.name} ({s.grade}학년 {s.classNum}반)</option>
           ))}
         </select>
-
-        {/* 카테고리 필터 */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
           {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCatFilter(c)}
+            <button key={c} onClick={() => setCatFilter(c)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${catFilter === c ? 'bg-white text-gray-900 shadow-card' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              {c}
-            </button>
+            >{c}</button>
           ))}
         </div>
-
-        {/* 공개 여부 필터 */}
         <select value={pubFilter} onChange={(e) => setPubFilter(e.target.value)} className="input w-28 h-9 py-1.5">
           <option>전체</option><option>공개</option><option>비공개</option>
         </select>
-
         <span className="text-sm text-gray-400">총 {filtered.length}건</span>
       </div>
 
-      {/* 목록 */}
       <div className="space-y-3">
         {!studentFilter ? (
           <div className="card p-12 text-center text-gray-400">학생을 선택하면 피드백 목록이 표시됩니다.</div>
@@ -164,35 +146,10 @@ export default function FeedbackManagement() {
           <div className="card p-12 text-center text-gray-400">불러오는 중...</div>
         ) : filtered.length === 0 ? (
           <div className="card p-12 text-center text-gray-400">피드백이 없습니다.</div>
-        ) : filtered.map((f) => {
-          const catKo = CATEGORY_MAP[f.category] || f.category
-          return (
-            <div key={f.id} className="card p-5">
-              <div className="flex items-start justify-between gap-3 mb-2.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
-                    {(f.studentName || selectedStudent?.name || '?')[0]}
-                  </div>
-                  <span className="font-semibold text-gray-900 text-sm">{f.studentName || selectedStudent?.name}</span>
-                  <span className={`badge ${catColor[catKo] || 'badge-gray'}`}>{catKo}</span>
-                  <span className="text-xs text-gray-400">{f.createdAt?.slice(0, 10)}</span>
-                  <span className="text-xs text-gray-400">· {f.teacherName}</span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() => handleTogglePublic(f)}
-                    className={`badge cursor-pointer transition-colors ${f.isPublic ? 'badge-green' : 'badge-gray'}`}
-                  >
-                    {f.isPublic ? '공개' : '비공개'}
-                  </button>
-                  <button onClick={() => openEdit(f)} className="btn-sm btn-ghost px-2 text-xs">수정</button>
-                  <button onClick={() => setDeleteId(f.id)} className="btn-sm text-red-500 hover:bg-red-50 rounded-md px-2 text-xs font-medium transition-colors">삭제</button>
-                </div>
-              </div>
-              <p className="text-sm text-gray-700 leading-relaxed">{f.content}</p>
-            </div>
-          )
-        })}
+        ) : filtered.map((f) => (
+          <FeedbackCard key={f.id} f={f} studentName={selectedStudent?.name}
+            onToggle={handleTogglePublic} onEdit={openEdit} onDelete={setDeleteId} editable />
+        ))}
       </div>
 
       {/* 작성/수정 모달 */}
@@ -207,15 +164,10 @@ export default function FeedbackManagement() {
               </button>
             </div>
             <div className="space-y-4">
-              {/* 학생 선택 (작성 시만) */}
               {!editTarget && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">학생 선택</label>
-                  <select
-                    value={form.studentId}
-                    onChange={(e) => setForm((f) => ({ ...f, studentId: e.target.value }))}
-                    className="input"
-                  >
+                  <select value={form.studentId} onChange={(e) => setForm((f) => ({ ...f, studentId: e.target.value }))} className="input">
                     <option value="">학생을 선택하세요</option>
                     {students.map((s) => (
                       <option key={s.id} value={s.id}>{s.name} ({s.grade}학년 {s.classNum}반)</option>
@@ -223,8 +175,6 @@ export default function FeedbackManagement() {
                   </select>
                 </div>
               )}
-
-              {/* 카테고리 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">카테고리</label>
                 <div className="flex gap-2 flex-wrap">
@@ -235,20 +185,11 @@ export default function FeedbackManagement() {
                   ))}
                 </div>
               </div>
-
-              {/* 내용 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">내용</label>
-                <textarea
-                  rows={4}
-                  value={form.content}
-                  onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-                  placeholder="피드백 내용을 입력하세요."
-                  className="input resize-none"
-                />
+                <textarea rows={4} value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                  placeholder="피드백 내용을 입력하세요." className="input resize-none" />
               </div>
-
-              {/* 공개 여부 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">공개 여부</label>
                 <div className="flex gap-4">
@@ -263,9 +204,7 @@ export default function FeedbackManagement() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setModal(false)} className="btn-md btn-secondary">취소</button>
-              <button onClick={handleSave} disabled={saving} className="btn-md btn-primary">
-                {saving ? '저장 중...' : '저장'}
-              </button>
+              <button onClick={handleSave} disabled={saving} className="btn-md btn-primary">{saving ? '저장 중...' : '저장'}</button>
             </div>
           </div>
         </div>
@@ -290,4 +229,124 @@ export default function FeedbackManagement() {
       )}
     </div>
   )
+}
+
+// 학생/학부모용 뷰 (읽기 전용)
+function StudentParentFeedbackView({ role }) {
+  const isStudent = role === 'STUDENT'
+  const isParent  = role === 'PARENT'
+
+  const [children,    setChildren]    = useState([])        // PARENT: 자녀 목록
+  const [studentInfo, setStudentInfo] = useState(null)
+  const [selectedId,  setSelectedId]  = useState(null)      // PARENT: 선택된 자녀 ID
+  const [feedbacks,   setFeedbacks]   = useState([])
+  const [loading,     setLoading]     = useState(false)
+  const [catFilter,   setCatFilter]   = useState('전체')
+  const [error,       setError]       = useState('')
+
+  // STUDENT: 자신의 학생 정보 자동 로드
+  useEffect(() => {
+    if (!isStudent) return
+    getMyStudent()
+      .then((s) => { setStudentInfo(s); })
+      .catch(() => setError('연동된 학생 정보를 찾을 수 없습니다. 담임 선생님에게 문의하세요.'))
+  }, [isStudent])
+
+  // PARENT: 자녀 목록 로드
+  useEffect(() => {
+    if (!isParent) return
+    getMyChildren()
+      .then((list) => {
+        setChildren(list || [])
+        if (list?.length === 1) setSelectedId(list[0].id)
+      })
+      .catch(() => setError('자녀 정보를 불러올 수 없습니다. 담임 선생님에게 연동을 요청하세요.'))
+  }, [isParent])
+
+  const loadFeedbacks = useCallback(async (sid) => {
+    if (!sid) return
+    setLoading(true)
+    try { setFeedbacks((await getFeedbacks(sid)) || []) }
+    catch { setFeedbacks([]) }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => {
+    if (isStudent && studentInfo?.id) loadFeedbacks(studentInfo.id)
+  }, [isStudent, studentInfo, loadFeedbacks])
+
+  useEffect(() => {
+    if (isParent && selectedId) {
+      const child = children.find((c) => c.id === selectedId)
+      setStudentInfo(child || null)
+      loadFeedbacks(selectedId)
+    }
+  }, [isParent, selectedId, children, loadFeedbacks])
+
+  const filtered = feedbacks.filter((f) => catFilter === '전체' || CATEGORY_MAP[f.category] === catFilter)
+
+  return (
+    <div className="space-y-5 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">내 피드백</h1>
+          {studentInfo && (
+            <p className="text-sm text-gray-500 mt-0.5">
+              {studentInfo.name} · {studentInfo.grade}학년 {studentInfo.classNum}반 {studentInfo.studentNum}번
+            </p>
+          )}
+        </div>
+      </div>
+
+      {error ? (
+        <div className="card p-6 text-center text-red-500">{error}</div>
+      ) : (
+        <>
+          <div className="card p-4 flex flex-wrap gap-3 items-center">
+            {/* PARENT: 자녀 선택 드롭다운 */}
+            {isParent && children.length > 1 && (
+              <select
+                value={selectedId ?? ''}
+                onChange={(e) => setSelectedId(Number(e.target.value))}
+                className="input w-44 h-9 py-1.5"
+              >
+                <option value="">자녀 선택</option>
+                {children.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.grade}학년 {c.classNum}반)</option>
+                ))}
+              </select>
+            )}
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+              {CATEGORIES.map((c) => (
+                <button key={c} onClick={() => setCatFilter(c)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${catFilter === c ? 'bg-white text-gray-900 shadow-card' : 'text-gray-500 hover:text-gray-700'}`}
+                >{c}</button>
+              ))}
+            </div>
+            <span className="text-sm text-gray-400">총 {filtered.length}건</span>
+          </div>
+
+          <div className="space-y-3">
+            {isParent && !selectedId ? (
+              <div className="card p-12 text-center text-gray-400">
+                {children.length === 0 ? '연동된 자녀 정보가 없습니다. 담임 선생님에게 문의하세요.' : '자녀를 선택하세요.'}
+              </div>
+            ) : loading ? (
+              <div className="card p-12 text-center text-gray-400">불러오는 중...</div>
+            ) : filtered.length === 0 ? (
+              <div className="card p-12 text-center text-gray-400">피드백이 없습니다.</div>
+            ) : filtered.map((f) => (
+              <FeedbackCard key={f.id} f={f} studentName={studentInfo?.name} editable={false} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+export default function FeedbackManagement() {
+  const { user } = useAuthStore()
+  if (user?.role === 'TEACHER') return <TeacherFeedbackView />
+  return <StudentParentFeedbackView role={user?.role} />
 }
