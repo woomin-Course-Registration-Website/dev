@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_DIR=/home/ec2-user/app
+APP_DIR=/home/ubuntu/app
 cd "$APP_DIR"
 
 if [ -f .env ]; then

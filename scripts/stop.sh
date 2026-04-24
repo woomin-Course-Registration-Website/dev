@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_DIR=/home/ec2-user/app
+APP_DIR=/home/ubuntu/app
 
 if [ -f "$APP_DIR/docker-compose.prod.yml" ]; then
   cd "$APP_DIR"
