@@ -11,6 +11,6 @@ public class HealthController {
 
     @GetMapping
     public ApiResponse<String> health() {
-        return ApiResponse.success("OK");
+        return ApiResponse.ok("OK");
     }
 }
