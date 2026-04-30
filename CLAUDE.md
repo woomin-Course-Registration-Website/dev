@@ -14,14 +14,15 @@ docker compose up --build    # 전체 스택 빌드 & 실행
 docker compose up            # 빌드 없이 실행 (이미지 있을 때)
 docker compose down          # 종료
 ```
-접속: `http://localhost` (프론트엔드), `http://localhost:8080/swagger-ui/index.html` (Swagger)
+접속: `http://localhost:3000` (프론트엔드), `http://localhost:8080/swagger-ui/index.html` (Swagger)
 
 ### 백엔드 (Spring Boot, 포트 :8080)
 ```bash
 ./gradlew bootRun          # 애플리케이션 실행
 ./gradlew build            # JAR 빌드
 ./gradlew test             # 전체 테스트 실행
-./gradlew test --tests "com.studentmanagement.ClassName"  # 단일 테스트 클래스 실행
+./gradlew test --tests "com.studentmanagement.ClassName"         # 단일 테스트 클래스
+./gradlew test --tests "com.studentmanagement.ClassName.method"  # 단일 테스트 메서드
 ./gradlew clean            # 빌드 아티팩트 정리
 ```
 
@@ -31,6 +32,12 @@ DB_USERNAME=root  DB_PASSWORD=password
 JWT_SECRET=local-dev-secret-key-must-be-at-least-256-bits-long
 MAIL_USERNAME=  MAIL_PASSWORD=   # 선택 사항; 미설정 시 이메일 기능 비활성
 ```
+
+**개발용 더미 데이터 시딩** (서버 실행 후):
+```bash
+curl -X POST http://localhost:8080/api/dev/seed
+```
+`/api/dev/**`는 인증 없이 접근 가능. 이미 존재하는 레코드는 건너뜀.
 
 ### 프론트엔드 (React/Vite, 포트 :3000)
 ```bash
@@ -56,7 +63,7 @@ MySQL 8 :3306  (DB: student_management)
 - `repository/` — 전체 구현 (커스텀 JPQL 포함)
 - `service/` — Auth, Student, Grade, StudentRecord, Feedback, Counseling, Notification, Subject, Report
 - `controller/` — 전체 구현 (Auth, User, Student, Grade, StudentRecord, Feedback, Counseling, Notification, Subject, Report)
-- `dto/` — ApiResponse<T>, 도메인별 Request/Response, report/ReportPreviewResponse
+- `dto/` — `ApiResponse<T>`, 도메인별 Request/Response, report/ReportPreviewResponse
 - `exception/` — GlobalExceptionHandler, ResourceNotFoundException, UnauthorizedException
 - `util/JwtUtil` — JWT 생성/검증
 
@@ -79,11 +86,15 @@ MySQL 8 :3306  (DB: student_management)
 
 ## API 응답 형식
 
-모든 엔드포인트는 `ApiResponse<T>` — `{ success: boolean, data: T, message: string }` 형식으로 응답. `ApiResponse.success(data)` / `ApiResponse.error(message)` 팩토리 메서드 사용. `GlobalExceptionHandler`가 `ResourceNotFoundException` (404), `UnauthorizedException` (403), `MethodArgumentNotValidException` (400), 일반 500 에러를 처리.
+모든 엔드포인트는 `ApiResponse<T>` — `{ success: boolean, data: T, message: string }` 형식으로 응답.
+
+팩토리 메서드: `ApiResponse.ok(data)` / `ApiResponse.ok(data, message)`. 에러 응답은 `GlobalExceptionHandler`가 직접 생성하며 `ResourceNotFoundException` (404), `UnauthorizedException` (403), `MethodArgumentNotValidException` (400), 일반 500 에러를 처리.
 
 ## 인가 패턴
 
 `SecurityConfig`는 stateless JWT 필터 사용 (Spring 세션 없음). 세밀한 접근 제어는 서비스 또는 컨트롤러 메서드의 `@PreAuthorize`로 강제 (`@EnableMethodSecurity` 활성화). Spring Security 역할 문자열은 `ROLE_TEACHER`, `ROLE_STUDENT` 등이지만, `@PreAuthorize("hasRole('TEACHER')")`는 접두사를 자동으로 제거.
+
+공개 엔드포인트: `/api/auth/**`, `/api/health`, `/api/dev/**`, Swagger UI.
 
 ## 중요 컨벤션
 
@@ -105,11 +116,20 @@ MySQL 8 :3306  (DB: student_management)
 - 기본: `ddl-auto: validate`
 - dev 프로파일: `ddl-auto: create-drop`, show-sql: true
 - prod 프로파일: `ddl-auto: update` (Docker 최초 실행 대응)
-- CORS 허용 오리진: `http://localhost`, `http://localhost:80`, `http://localhost:3000`
+- CORS: `allowed-origins: "*"` (개발용 와일드카드; 프로덕션에서 환경변수로 좁혀야 함)
 
 ## 테스트 패턴
 
-**Controller 테스트**: `@WebMvcTest` + `@TestPropertySource`로 JWT 속성 주입. `SecurityTestHelper`로 역할 스텁 (`stubAsTeacher()`, `stubAsStudent()`) — Bearer 토큰: `"Bearer fake.test.token"`.
+**Controller 테스트**: `@WebMvcTest` + `@TestPropertySource`로 JWT 속성 주입. `SecurityTestHelper`로 역할 스텁 — Bearer 토큰: `"Bearer fake.test.token"`.
+
+```java
+// 사용 가능한 스텁 메서드
+SecurityTestHelper.stubAsTeacher(jwtUtil);
+SecurityTestHelper.stubAsStudent(jwtUtil);
+SecurityTestHelper.stubAsParent(jwtUtil);
+SecurityTestHelper.stubAsAdmin(jwtUtil);
+SecurityTestHelper.stubAsInvalid(jwtUtil);
+```
 
 **픽스처**: `TestFixtures` 클래스의 정적 빌더 메서드로 엔티티 생성 (`teacherUser()`, `student(linkedUser)` 등). 리플렉션으로 ID 주입.
 
@@ -120,6 +140,11 @@ MySQL 8 :3306  (DB: student_management)
 **알림 연동**: 서비스에서 도메인 이벤트 발생 시 `NotificationService.send()`로 직접 호출 (e.g. 성적 입력 후 학생/학부모에게 알림).
 
 **역할별 응답 필터링**: 서비스에서 요청자 역할(TEACHER vs STUDENT/PARENT)에 따라 반환 데이터 차등 처리 (e.g. FeedbackService).
+
+## CI/CD
+
+- **CI** (`.github/workflows/ci.yml`): `main`/`develop` 브랜치 push/PR 시 실행. 실제 MySQL 컨테이너로 `SPRING_PROFILES_ACTIVE: dev`에서 테스트 → JAR 빌드.
+- **CD** (`.github/workflows/cd.yml`): `main` push 시 Docker Hub에 백엔드 이미지 push → AWS S3에 번들 업로드 → AWS CodeDeploy로 배포. `docker-compose.prod.yml`은 Docker Hub에서 pre-built 이미지를 사용하는 프로덕션 전용 Compose 파일.
 
 ## 상세 문서
 

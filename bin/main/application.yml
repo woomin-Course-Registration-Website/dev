@@ -28,6 +28,7 @@ spring:
 
 server:
   port: 8080
+  forward-headers-strategy: framework
 
 jwt:
   secret: ${JWT_SECRET:local-dev-secret-key-must-be-at-least-256-bits-long}
@@ -36,10 +37,7 @@ jwt:
 
 cors:
   allowed-origins:
-    - http://localhost:3000
-    - http://localhost:80
-    - http://localhost
-    - https://main.d1lmyufscdj30l.amplifyapp.com
+    - "*"
 
 ---
 spring:
