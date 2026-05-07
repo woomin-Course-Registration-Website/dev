@@ -6,52 +6,78 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  id-token: write  # GitHub OIDC 토큰 발급 (장기 액세스 키 불필요)
+  contents: read
+
 env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  AWS_REGION: ap-northeast-2
+  EKS_CLUSTER: student-mgmt-cluster
+  NAMESPACE: student-mgmt
 
 jobs:
   build-and-push:
-    name: Build & Push Docker Images
+    name: Build & Push to ECR
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+      ecr_registry: ${{ steps.ecr_login.outputs.registry }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # terraform output github_actions_role_arn
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Extract Docker metadata (backend)
-        id: meta-backend
+      - name: Login to ECR
+        id: ecr_login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker metadata
+        id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/student-management-backend
+          images: |
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/backend
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/frontend
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & push backend image
+      - name: Build & push backend
         uses: docker/build-push-action@v5
         with:
           context: .
-          dockerfile: Dockerfile
+          file: Dockerfile
           push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
+          tags: |
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/backend:${{ steps.meta.outputs.version }}
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/frontend:${{ steps.meta.outputs.version }}
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy via CodeDeploy
+    name: Deploy to EKS
     runs-on: ubuntu-latest
     needs: build-and-push
     environment: production
@@ -59,28 +85,53 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Create deployment bundle
-        run: zip -r deploy.zip appspec.yml scripts/ docker-compose.prod.yml
+      - name: Configure kubectl
+        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
 
-      - name: Upload bundle to S3
-        run: aws s3 cp deploy.zip s3://${{ secrets.S3_BUCKET }}/deploy.zip
+      - name: Install deployment tooling
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
 
-      - name: Create CodeDeploy deployment
-        id: deploy
+      - name: Validate deployment configuration
+        env:
+          ACM_CERT_ARN: ${{ secrets.ACM_CERT_ARN }}
+          ALB_HOSTNAME: ${{ vars.ALB_HOSTNAME }}
         run: |
-          DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name ${{ secrets.CODEDEPLOY_APP_NAME }} \
-            --deployment-group-name ${{ secrets.CODEDEPLOY_DEPLOYMENT_GROUP }} \
-            --s3-location bucket=${{ secrets.S3_BUCKET }},key=deploy.zip,bundleType=zip \
-            --query 'deploymentId' --output text)
-          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          test -n "$ACM_CERT_ARN" || (echo "ACM_CERT_ARN secret is required" && exit 1)
+          test -n "$ALB_HOSTNAME" || (echo "ALB_HOSTNAME repository variable is required, e.g. alb.example.com" && exit 1)
 
-      - name: Wait for deployment to succeed
-        run: aws deploy wait deployment-successful --deployment-id ${{ steps.deploy.outputs.deployment_id }}
+      - name: Apply base K8s resources
+        env:
+          ACM_CERT_ARN: ${{ secrets.ACM_CERT_ARN }}
+          ALB_HOSTNAME: ${{ vars.ALB_HOSTNAME }}
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/external-secrets/
+          kubectl apply -f k8s/network-policy.yaml
+          kubectl apply -f k8s/backend/service.yaml
+          kubectl apply -f k8s/backend/hpa.yaml
+          kubectl apply -f k8s/backend/pdb.yaml
+          kubectl apply -f k8s/frontend/service.yaml
+          kubectl apply -f k8s/frontend/hpa.yaml
+          envsubst < k8s/ingress.yaml | kubectl apply -f -
+
+      - name: Deploy backend (무중단 Rolling Update)
+        env:
+          ECR_BACKEND_IMAGE: ${{ needs.build-and-push.outputs.ecr_registry }}/student-mgmt/backend
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          envsubst < k8s/backend/deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/backend -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Deploy frontend (무중단 Rolling Update)
+        env:
+          ECR_FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.ecr_registry }}/student-mgmt/frontend
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          envsubst < k8s/frontend/deployment.yaml | kubectl apply -f -
+          kubectl rollout status deployment/frontend -n ${{ env.NAMESPACE }} --timeout=120s

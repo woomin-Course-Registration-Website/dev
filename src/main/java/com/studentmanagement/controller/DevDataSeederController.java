@@ -1,9 +1,22 @@
 package com.studentmanagement.controller;
 
-import com.studentmanagement.domain.*;
+import com.studentmanagement.domain.Counseling;
+import com.studentmanagement.domain.Feedback;
+import com.studentmanagement.domain.Grade;
+import com.studentmanagement.domain.Student;
+import com.studentmanagement.domain.StudentRecord;
+import com.studentmanagement.domain.Subject;
+import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
-import com.studentmanagement.repository.*;
+import com.studentmanagement.repository.CounselingRepository;
+import com.studentmanagement.repository.FeedbackRepository;
+import com.studentmanagement.repository.GradeRepository;
+import com.studentmanagement.repository.StudentRecordRepository;
+import com.studentmanagement.repository.StudentRepository;
+import com.studentmanagement.repository.SubjectRepository;
+import com.studentmanagement.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +28,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+@Profile("!prod")
 @RestController
 @RequestMapping("/api/dev")
 @RequiredArgsConstructor
@@ -32,47 +46,34 @@ public class DevDataSeederController {
     @PostMapping("/seed")
     @Transactional
     public ApiResponse<Map<String, Integer>> seed() {
-        String pw = passwordEncoder.encode("password123");
+        User teacher1 = upsertUser("teacher1@school.com", "Kim Minji", User.Role.TEACHER);
+        User teacher2 = upsertUser("teacher2@school.com", "Lee Seojun", User.Role.TEACHER);
+        User parent1 = upsertUser("parent1@school.com", "Park Parent", User.Role.PARENT);
+        User parent2 = upsertUser("parent2@school.com", "Choi Parent", User.Role.PARENT);
 
-        // 교사 계정
-        User teacher1 = userRepository.save(new User("teacher1@school.com", pw, "김민준", User.Role.TEACHER));
-        User teacher2 = userRepository.save(new User("teacher2@school.com", pw, "이서연", User.Role.TEACHER));
+        User studentUser1 = upsertUser("student1@school.com", "Park Jisoo", User.Role.STUDENT);
+        User studentUser2 = upsertUser("student2@school.com", "Choi Yuna", User.Role.STUDENT);
+        User studentUser3 = upsertUser("student3@school.com", "Jung Hajun", User.Role.STUDENT);
+        User studentUser4 = upsertUser("student4@school.com", "Kang Seoyeon", User.Role.STUDENT);
+        User studentUser5 = upsertUser("student5@school.com", "Oh Doyun", User.Role.STUDENT);
+        upsertUser("admin@school.com", "Admin", User.Role.ADMIN);
 
-        // 학생 계정 (User + Student 연동)
-        User studentUser1 = userRepository.save(new User("student1@school.com", pw, "박지호", User.Role.STUDENT));
-        User studentUser2 = userRepository.save(new User("student2@school.com", pw, "최유나", User.Role.STUDENT));
-        User studentUser3 = userRepository.save(new User("student3@school.com", pw, "정하준", User.Role.STUDENT));
-        User studentUser4 = userRepository.save(new User("student4@school.com", pw, "강서윤", User.Role.STUDENT));
-        User studentUser5 = userRepository.save(new User("student5@school.com", pw, "윤도현", User.Role.STUDENT));
+        Student s1 = upsertStudent("Park Jisoo", 1, 1, 1, studentUser1, List.of(parent1));
+        Student s2 = upsertStudent("Choi Yuna", 1, 1, 2, studentUser2, List.of(parent2));
+        Student s3 = upsertStudent("Jung Hajun", 1, 2, 1, studentUser3, List.of());
+        Student s4 = upsertStudent("Kang Seoyeon", 2, 1, 1, studentUser4, List.of());
+        Student s5 = upsertStudent("Oh Doyun", 2, 2, 3, studentUser5, List.of());
+        Student s6 = upsertStudent("Han Suho", 3, 1, 2, null, List.of());
+        Student s7 = upsertStudent("Seo Taewon", 3, 2, 1, null, List.of());
+        List<Student> students = List.of(s1, s2, s3, s4, s5, s6, s7);
 
-        // 학부모 계정
-        User parent1 = userRepository.save(new User("parent1@school.com", pw, "박부모", User.Role.PARENT));
-        User parent2 = userRepository.save(new User("parent2@school.com", pw, "최부모", User.Role.PARENT));
-
-        // ADMIN
-        userRepository.save(new User("admin@school.com", pw, "관리자", User.Role.ADMIN));
-
-        // 학생 엔티티
-        Student s1 = new Student("박지호", 1, 1, 1); s1.setUser(studentUser1); s1.getParents().add(parent1);
-        Student s2 = new Student("최유나", 1, 1, 2); s2.setUser(studentUser2); s2.getParents().add(parent2);
-        Student s3 = new Student("정하준", 1, 2, 1); s3.setUser(studentUser3);
-        Student s4 = new Student("강서윤", 2, 1, 1); s4.setUser(studentUser4);
-        Student s5 = new Student("윤도현", 2, 2, 3); s5.setUser(studentUser5);
-        Student s6 = new Student("임수아",  3, 1, 2);
-        Student s7 = new Student("한태양",  3, 2, 1);
-
-        List<Student> students = studentRepository.saveAll(List.of(s1, s2, s3, s4, s5, s6, s7));
-
-        // 과목
-        Subject math    = subjectRepository.save(new Subject("수학"));
-        Subject english = subjectRepository.save(new Subject("영어"));
-        Subject korean  = subjectRepository.save(new Subject("국어"));
-        Subject science = subjectRepository.save(new Subject("과학"));
-        Subject history = subjectRepository.save(new Subject("한국사"));
-
+        Subject math = upsertSubject("Mathematics");
+        Subject english = upsertSubject("English");
+        Subject korean = upsertSubject("Korean");
+        Subject science = upsertSubject("Science");
+        Subject history = upsertSubject("History");
         List<Subject> subjects = List.of(math, english, korean, science, history);
 
-        // 성적 데이터
         double[][] scores2024s1 = {
             {92, 85, 78, 90, 88},
             {76, 91, 83, 70, 95},
@@ -100,68 +101,46 @@ public class DevDataSeederController {
             }
         }
 
-        // 피드백
-        List<Feedback> feedbacks = List.of(
-            feedback(teacher1, s1, Feedback.Category.GRADE,      "수학 실력이 많이 향상되었습니다. 꾸준한 노력이 돋보입니다.", true),
-            feedback(teacher1, s1, Feedback.Category.ATTITUDE,   "수업 태도가 매우 좋고 질문을 적극적으로 합니다.", true),
-            feedback(teacher1, s2, Feedback.Category.BEHAVIOR,   "쉬는 시간에 다른 학생들과 잘 어울립니다.", true),
-            feedback(teacher1, s2, Feedback.Category.GRADE,      "영어 성적이 우수합니다. 독해 능력이 특히 뛰어납니다.", true),
-            feedback(teacher2, s3, Feedback.Category.ATTENDANCE, "지각이 잦아 주의가 필요합니다.", false),
-            feedback(teacher2, s3, Feedback.Category.GRADE,      "국어 성적이 탁월합니다. 작문 능력이 돋보입니다.", true),
-            feedback(teacher2, s4, Feedback.Category.OTHER,      "미술 동아리 활동에 열심히 참여하고 있습니다.", true),
-            feedback(teacher1, s5, Feedback.Category.GRADE,      "전반적으로 성적이 우수하며 특히 과학 분야에 두각을 나타냅니다.", true),
-            feedback(teacher2, s6, Feedback.Category.BEHAVIOR,   "학급 분위기를 저해하는 행동이 관찰됩니다. 면담 필요.", false),
-            feedback(teacher1, s7, Feedback.Category.ATTITUDE,   "수업 참여도가 높고 리더십이 뛰어납니다.", true)
-        );
-        feedbackRepository.saveAll(feedbacks);
-
-        // 상담
-        List<Counseling> counselings = List.of(
-            counseling(teacher1, s1, LocalDate.of(2024, 3, 15),
-                "1학기 학습 목표 설정 상담. 수학 90점 이상 목표로 설정함.",
-                "2주 후 중간고사 대비 2차 상담 예정", Counseling.ShareScope.ALL),
-            counseling(teacher1, s1, LocalDate.of(2024, 5, 20),
-                "중간고사 성적 확인 상담. 목표 달성에 근접, 수학 92점 획득.",
-                "기말고사까지 현 수준 유지 독려", Counseling.ShareScope.ALL),
-            counseling(teacher1, s2, LocalDate.of(2024, 4, 10),
-                "진로 상담. 영어 교육 계열 희망.",
-                "관련 대학 정보 수집 후 다음 상담 시 공유", Counseling.ShareScope.PRIVATE),
-            counseling(teacher2, s3, LocalDate.of(2024, 3, 25),
-                "지각 문제 상담. 거리가 멀어 교통 문제가 원인.",
-                "학부모 연락 및 경로 변경 검토", Counseling.ShareScope.PRIVATE),
-            counseling(teacher2, s4, LocalDate.of(2024, 6, 5),
-                "학업 부진 상담. 수학·과학 집중 지도 필요.",
-                "방과후 학습 프로그램 참여 권장", Counseling.ShareScope.ALL),
-            counseling(teacher1, s5, LocalDate.of(2024, 7, 1),
-                "우수 학생 심화 학습 상담. 과학올림피아드 참가 권유.",
-                "대회 일정 확인 후 준비 지원", Counseling.ShareScope.ALL),
-            counseling(teacher2, s6, LocalDate.of(2024, 4, 18),
-                "생활 지도 상담. 학급 내 갈등 상황 파악 및 중재.",
-                "1개월 후 관찰 후 재상담", Counseling.ShareScope.PRIVATE)
-        );
-        counselingRepository.saveAll(counselings);
-
-        // 학생부
-        List<StudentRecord> records = List.of(
-            record(s1, 185, 2, 3, "2024년 수학경시대회 장려상 수상. 과학 탐구 동아리 활동 2년."),
-            record(s2, 182, 3, 5, "영어 말하기 대회 최우수상. 교내 밴드 활동 참여."),
-            record(s3, 178, 8, 12, "독서 토론 동아리 부장. 학교신문 편집부 활동."),
-            record(s4, 183, 5, 7, "미술 동아리 부원. 학교 축제 미술 작품 전시 참여."),
-            record(s5, 186, 1, 2, "과학올림피아드 지역 예선 2위. 수학·과학 성적 전교 상위권."),
-            record(s6, 170, 15, 20, "방과후 학습 프로그램 이수. 생활 지도 개선 중."),
-            record(s7, 184, 3, 4, "학급 회장. 학교 체육대회 기획 참여. 리더십 우수.")
-        );
-        studentRecordRepository.saveAll(records);
+        int feedbackCount = seedFeedbacks(teacher1, teacher2, students);
+        int counselingCount = seedCounselings(teacher1, teacher2, students);
+        int recordCount = seedRecords(students);
 
         return ApiResponse.ok(Map.of(
             "users", (int) userRepository.count(),
             "students", (int) studentRepository.count(),
             "subjects", (int) subjectRepository.count(),
-            "grades", gradeCount,
-            "feedbacks", feedbacks.size(),
-            "counselings", counselings.size(),
-            "studentRecords", records.size()
+            "gradesCreated", gradeCount,
+            "feedbacksCreated", feedbackCount,
+            "counselingsCreated", counselingCount,
+            "studentRecordsCreated", recordCount
         ));
+    }
+
+    private User upsertUser(String email, String name, User.Role role) {
+        return userRepository.findByEmail(email)
+            .orElseGet(() -> userRepository.save(new User(email, passwordEncoder.encode("password123"), name, role)));
+    }
+
+    private Student upsertStudent(String name, int grade, int classNum, int studentNum, User user, List<User> parents) {
+        Student student = studentRepository.findByGradeAndClassNumAndStudentNum(grade, classNum, studentNum)
+            .orElseGet(() -> studentRepository.save(new Student(name, grade, classNum, studentNum)));
+
+        boolean changed = false;
+        if (student.getUser() == null && user != null) {
+            student.setUser(user);
+            changed = true;
+        }
+        for (User parent : parents) {
+            if (student.getParents().add(parent)) {
+                changed = true;
+            }
+        }
+        return changed ? studentRepository.save(student) : student;
+    }
+
+    private Subject upsertSubject(String name) {
+        return subjectRepository.findByName(name)
+            .orElseGet(() -> subjectRepository.save(new Subject(name)));
     }
 
     private int saveGrade(Student student, Subject subject, int year, int semester, double score) {
@@ -169,14 +148,74 @@ public class DevDataSeederController {
                 student.getId(), subject.getId(), year, semester).isPresent()) {
             return 0;
         }
-        Grade g = new Grade();
-        g.setStudent(student);
-        g.setSubject(subject);
-        g.setYear(year);
-        g.setSemester(semester);
-        g.setScore(BigDecimal.valueOf(score));
-        g.setGradeRank(calcRank(score));
-        gradeRepository.save(g);
+        Grade grade = new Grade();
+        grade.setStudent(student);
+        grade.setSubject(subject);
+        grade.setYear(year);
+        grade.setSemester(semester);
+        grade.setScore(BigDecimal.valueOf(score));
+        grade.setGradeRank(calcRank(score));
+        gradeRepository.save(grade);
+        return 1;
+    }
+
+    private int seedFeedbacks(User teacher1, User teacher2, List<Student> students) {
+        if (feedbackRepository.count() > 0) {
+            return 0;
+        }
+        List<Feedback> feedbacks = List.of(
+            feedback(teacher1, students.get(0), Feedback.Category.GRADE, "Mathematics performance improved steadily.", true),
+            feedback(teacher1, students.get(0), Feedback.Category.ATTITUDE, "Participates actively and asks thoughtful questions.", true),
+            feedback(teacher1, students.get(1), Feedback.Category.BEHAVIOR, "Works well with classmates and keeps class routines.", true),
+            feedback(teacher1, students.get(1), Feedback.Category.GRADE, "English comprehension is strong.", true),
+            feedback(teacher2, students.get(2), Feedback.Category.ATTENDANCE, "Several late arrivals need follow-up.", false),
+            feedback(teacher2, students.get(3), Feedback.Category.OTHER, "Shows consistent effort in art club activities.", true),
+            feedback(teacher1, students.get(4), Feedback.Category.GRADE, "Strong overall achievement with interest in science.", true)
+        );
+        feedbackRepository.saveAll(feedbacks);
+        return feedbacks.size();
+    }
+
+    private int seedCounselings(User teacher1, User teacher2, List<Student> students) {
+        if (counselingRepository.count() > 0) {
+            return 0;
+        }
+        List<Counseling> counselings = List.of(
+            counseling(teacher1, students.get(0), LocalDate.of(2024, 3, 15),
+                "Set first-semester learning goals.", "Review progress before midterms.", Counseling.ShareScope.ALL),
+            counseling(teacher1, students.get(1), LocalDate.of(2024, 4, 10),
+                "Discussed English education track interests.", "Share related major information.", Counseling.ShareScope.PRIVATE),
+            counseling(teacher2, students.get(2), LocalDate.of(2024, 3, 25),
+                "Discussed late arrivals and commute constraints.", "Contact guardian and check route options.", Counseling.ShareScope.PRIVATE),
+            counseling(teacher2, students.get(3), LocalDate.of(2024, 6, 5),
+                "Discussed study focus for math and science.", "Recommend after-school study program.", Counseling.ShareScope.ALL),
+            counseling(teacher1, students.get(4), LocalDate.of(2024, 7, 1),
+                "Discussed science competition preparation.", "Check competition schedule.", Counseling.ShareScope.ALL)
+        );
+        counselingRepository.saveAll(counselings);
+        return counselings.size();
+    }
+
+    private int seedRecords(List<Student> students) {
+        int count = 0;
+        count += saveRecord(students.get(0), 185, 2, 3, "Improved mathematical reasoning and science club participation.");
+        count += saveRecord(students.get(1), 182, 3, 5, "Excellent English presentation performance and school band participation.");
+        count += saveRecord(students.get(2), 178, 8, 12, "Active in reading debate club and school newspaper.");
+        count += saveRecord(students.get(3), 183, 5, 7, "Participated in art club exhibition.");
+        count += saveRecord(students.get(4), 186, 1, 2, "Strong science and mathematics achievement.");
+        count += saveRecord(students.get(5), 170, 15, 20, "Needs continued support for attendance and school routines.");
+        count += saveRecord(students.get(6), 184, 3, 4, "Class leader with steady participation in school events.");
+        return count;
+    }
+
+    private int saveRecord(Student student, int present, int absent, int late, String notes) {
+        if (studentRecordRepository.findByStudentId(student.getId()).isPresent()) {
+            return 0;
+        }
+        StudentRecord record = new StudentRecord(student);
+        record.setAttendance(String.format("{\"present\":%d,\"absent\":%d,\"late\":%d}", present, absent, late));
+        record.setSpecialNotes(notes);
+        studentRecordRepository.save(record);
         return 1;
     }
 
@@ -189,30 +228,23 @@ public class DevDataSeederController {
     }
 
     private Feedback feedback(User teacher, Student student, Feedback.Category category, String content, boolean isPublic) {
-        Feedback f = new Feedback();
-        f.setTeacher(teacher);
-        f.setStudent(student);
-        f.setCategory(category);
-        f.setContent(content);
-        f.setPublic(isPublic);
-        return f;
+        Feedback feedback = new Feedback();
+        feedback.setTeacher(teacher);
+        feedback.setStudent(student);
+        feedback.setCategory(category);
+        feedback.setContent(content);
+        feedback.setPublic(isPublic);
+        return feedback;
     }
 
     private Counseling counseling(User teacher, Student student, LocalDate date, String content, String nextPlan, Counseling.ShareScope scope) {
-        Counseling c = new Counseling();
-        c.setTeacher(teacher);
-        c.setStudent(student);
-        c.setDate(date);
-        c.setContent(content);
-        c.setNextPlan(nextPlan);
-        c.setShareScope(scope);
-        return c;
-    }
-
-    private StudentRecord record(Student student, int present, int absent, int late, String notes) {
-        StudentRecord r = new StudentRecord(student);
-        r.setAttendance(String.format("{\"present\":%d,\"absent\":%d,\"late\":%d}", present, absent, late));
-        r.setSpecialNotes(notes);
-        return r;
+        Counseling counseling = new Counseling();
+        counseling.setTeacher(teacher);
+        counseling.setStudent(student);
+        counseling.setDate(date);
+        counseling.setContent(content);
+        counseling.setNextPlan(nextPlan);
+        counseling.setShareScope(scope);
+        return counseling;
     }
 }

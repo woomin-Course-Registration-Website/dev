@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend
+  namespace: student-mgmt
+spec:
+  minAvailable: 1  # 노드 점검/교체 등 외부 이벤트 시에도 최소 1개 보장
+  selector:
+    matchLabels:
+      app: backend

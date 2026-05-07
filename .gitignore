@@ -190,14 +190,24 @@ $RECYCLE.BIN/
 
 .env*
 
+# Terraform
+infra/terraform/terraform.tfvars
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/crash.log
+
 # Gradle build artifacts
 .gradle/
+.gradle-user-home/
 build/
 
 # Frontend artifacts
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/.npm-cache/
 frontend/coverage/
 
 # Test and coverage outputs
@@ -222,4 +232,5 @@ pnpm-debug.log*
 
 # Local tool settings
 .cursor/
+.claude/settings.json
 .claude/settings.local.json
