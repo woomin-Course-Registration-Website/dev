@@ -30,6 +30,25 @@ server:
   port: 8080
   forward-headers-strategy: framework
 
+# Actuator: 운영 환경에서 K8s probe / 모니터링 시스템이 사용한다.
+# health 그룹 분리: liveness(앱 프로세스 살아있는지) / readiness(트래픽 수용 가능한지).
+# 보안: env, beans 등 민감 엔드포인트는 노출하지 않는다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
 jwt:
   secret: ${JWT_SECRET:local-dev-secret-key-must-be-at-least-256-bits-long}
   access-token-expiration: 900000       # 15분 (ms)
@@ -56,7 +75,9 @@ spring:
       on-profile: prod
   jpa:
     hibernate:
-      ddl-auto: update
+      # 운영 환경에서는 스키마 자동 변경을 금지한다.
+      # 신규 컬럼/인덱스가 필요하면 별도 마이그레이션 SQL로 적용 후 배포한다.
+      ddl-auto: validate
     show-sql: false
 
 # prod에서는 JWT_SECRET 환경변수 미설정 시 즉시 기동 실패하도록 fallback 제거

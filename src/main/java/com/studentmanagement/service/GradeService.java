@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 성적 관리 서비스
@@ -49,14 +51,47 @@ public class GradeService {
     /**
      * 학생 성적 목록 조회
      * STUDENT는 본인, PARENT는 연동된 자녀만 조회 가능합니다.
+     *
+     * 평균(average)과 학기 총점(total)은 결과 그레이드 리스트에서 등장하는
+     * (subjectId, year, semester) / (year, semester) 조합을 한 번에 집계해 N+1 쿼리를 회피합니다.
      */
     public List<GradeResponse> getGrades(Long studentId, Integer year, Integer semester, Long subjectId,
                                          String requesterEmail, User.Role role) {
         studentAccessService.check(studentId, requesterEmail, role);
-        return gradeRepository.findByStudentAndFilters(studentId, year, semester, subjectId)
+        List<Grade> grades = gradeRepository.findByStudentAndFilters(studentId, year, semester, subjectId);
+        if (grades.isEmpty()) return List.of();
+
+        List<Long> subjectIds = grades.stream().map(g -> g.getSubject().getId()).distinct().toList();
+        List<Integer> years = grades.stream().map(Grade::getYear).distinct().toList();
+        List<Integer> semesters = grades.stream().map(Grade::getSemester).distinct().toList();
+
+        Map<String, Double> averageByKey = gradeRepository
+                .findAverageScoresGrouped(subjectIds, years, semesters)
                 .stream()
-                .map(this::toResponse)
+                .collect(Collectors.toMap(
+                        row -> averageKey((Long) row[0], (Integer) row[1], (Integer) row[2]),
+                        row -> row[3] == null ? null : ((Number) row[3]).doubleValue()));
+
+        Map<String, Double> totalByKey = gradeRepository
+                .findTotalScoresForStudent(studentId, years, semesters)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> totalKey((Integer) row[0], (Integer) row[1]),
+                        row -> row[2] == null ? null : ((Number) row[2]).doubleValue()));
+
+        return grades.stream()
+                .map(g -> new GradeResponse(g,
+                        averageByKey.get(averageKey(g.getSubject().getId(), g.getYear(), g.getSemester())),
+                        totalByKey.get(totalKey(g.getYear(), g.getSemester()))))
                 .toList();
+    }
+
+    private static String averageKey(Long subjectId, int year, int semester) {
+        return subjectId + ":" + year + ":" + semester;
+    }
+
+    private static String totalKey(int year, int semester) {
+        return year + ":" + semester;
     }
 
     /**

@@ -58,12 +58,14 @@ class GradeServiceTest {
         Grade grade = buildGrade(student, "85.00", "B");
         given(gradeRepository.findByStudentAndFilters(10L, null, null, null))
                 .willReturn(List.of(grade));
-        stubAverageAndTotal();
+        stubBatchedAggregates();
 
         List<GradeResponse> result = gradeService.getGrades(10L, null, null, null,
                 "teacher@test.com", User.Role.TEACHER);
 
         assertThat(result).hasSize(1);
+        assertThat(result.get(0).getAverage()).isEqualTo(80.0);
+        assertThat(result.get(0).getTotal()).isEqualTo(85.0);
         verify(studentAccessService).check(10L, "teacher@test.com", User.Role.TEACHER);
     }
 
@@ -72,13 +74,29 @@ class GradeServiceTest {
         Grade grade = buildGrade(student, "85.00", "B");
         given(gradeRepository.findByStudentAndFilters(10L, null, null, null))
                 .willReturn(List.of(grade));
-        stubAverageAndTotal();
+        stubBatchedAggregates();
 
         List<GradeResponse> result = gradeService.getGrades(10L, null, null, null,
                 "student@test.com", User.Role.STUDENT);
 
         assertThat(result).hasSize(1);
         verify(studentAccessService).check(10L, "student@test.com", User.Role.STUDENT);
+    }
+
+    @Test
+    void getGrades_whenEmpty_returnsEmptyListWithoutBatchQueries() {
+        given(gradeRepository.findByStudentAndFilters(10L, null, null, null))
+                .willReturn(List.of());
+
+        List<GradeResponse> result = gradeService.getGrades(10L, null, null, null,
+                "teacher@test.com", User.Role.TEACHER);
+
+        assertThat(result).isEmpty();
+        // 빈 리스트일 때 추가 집계 쿼리가 실행되지 않아야 한다 (불필요한 IN () 회피)
+        verify(gradeRepository, org.mockito.Mockito.never())
+                .findAverageScoresGrouped(anyList(), anyList(), anyList());
+        verify(gradeRepository, org.mockito.Mockito.never())
+                .findTotalScoresForStudent(anyLong(), anyList(), anyList());
     }
 
     @Test
@@ -99,7 +117,7 @@ class GradeServiceTest {
         stubStudentAndSubject(student);
         Grade saved = buildGrade(student, "85.00", "B");
         given(gradeRepository.save(any())).willReturn(saved);
-        stubAverageAndTotal();
+        stubSingleAggregates();
 
         GradeResponse result = gradeService.create(10L, req);
 
@@ -133,7 +151,7 @@ class GradeServiceTest {
         given(subjectRepository.findById(100L)).willReturn(Optional.of(subject));
         Grade saved = buildGrade(orphanStudent, "80.00", "B");
         given(gradeRepository.save(any())).willReturn(saved);
-        stubAverageAndTotal();
+        stubSingleAggregates();
 
         gradeService.create(10L, req);
 
@@ -157,7 +175,7 @@ class GradeServiceTest {
         stubStudentAndSubject(student);
         Grade saved = buildGrade(student, score, expectedRank);
         given(gradeRepository.save(any())).willReturn(saved);
-        stubAverageAndTotal();
+        stubSingleAggregates();
 
         GradeResponse result = gradeService.create(10L, gradeRequest(score));
 
@@ -171,7 +189,7 @@ class GradeServiceTest {
         Grade existing = buildGrade(student, "85.00", "B");
         given(gradeRepository.findById(200L)).willReturn(Optional.of(existing));
         given(gradeRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
-        stubAverageAndTotal();
+        stubSingleAggregates();
 
         GradeResponse result = gradeService.update(200L, gradeRequest("95.00"));
 
@@ -228,9 +246,22 @@ class GradeServiceTest {
         given(subjectRepository.findById(100L)).willReturn(Optional.of(subject));
     }
 
-    private void stubAverageAndTotal() {
+    /** create/update 단일 grade 응답에서 사용되는 toResponse() 경로용 stub */
+    private void stubSingleAggregates() {
         given(gradeRepository.findAverageScore(any(), anyInt(), anyInt())).willReturn(80.0);
         given(gradeRepository.findTotalScore(any(), anyInt(), anyInt())).willReturn(85.0);
+    }
+
+    /** getGrades 목록 조회 시 사용되는 배치 집계용 stub */
+    private void stubBatchedAggregates() {
+        List<Object[]> avgRows = new java.util.ArrayList<>();
+        avgRows.add(new Object[]{100L, 2025, 1, 80.0});
+        List<Object[]> totalRows = new java.util.ArrayList<>();
+        totalRows.add(new Object[]{2025, 1, 85.0});
+        given(gradeRepository.findAverageScoresGrouped(anyList(), anyList(), anyList()))
+                .willReturn(avgRows);
+        given(gradeRepository.findTotalScoresForStudent(anyLong(), anyList(), anyList()))
+                .willReturn(totalRows);
     }
 
     private GradeRequest gradeRequest(String score) {
