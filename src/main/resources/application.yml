@@ -58,3 +58,12 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+
+# prod에서는 JWT_SECRET 환경변수 미설정 시 즉시 기동 실패하도록 fallback 제거
+jwt:
+  secret: ${JWT_SECRET}
+
+# prod에서는 CORS_ALLOWED_ORIGIN 환경변수로 명시적 origin 지정 필수 (와일드카드 차단)
+cors:
+  allowed-origins:
+    - ${CORS_ALLOWED_ORIGIN}

@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,24 +34,33 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final Environment environment;
 
-    public SecurityConfig(JwtUtil jwtUtil, CorsConfigurationSource corsConfigurationSource) {
+    public SecurityConfig(JwtUtil jwtUtil, CorsConfigurationSource corsConfigurationSource,
+                          Environment environment) {
         this.jwtUtil = jwtUtil;
         this.corsConfigurationSource = corsConfigurationSource;
+        this.environment = environment;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        boolean prodProfile = environment.acceptsProfiles(Profiles.of("prod"));
+
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/health").permitAll()
-                .requestMatchers("/api/dev/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(auth -> {
+                auth.requestMatchers("/api/auth/**", "/api/health").permitAll();
+                // /api/dev/** 시드 엔드포인트는 non-prod 프로파일에서만 노출
+                // (DevDataSeederController에도 @Profile("!prod") 적용되어 있으나 defense-in-depth)
+                if (!prodProfile) {
+                    auth.requestMatchers("/api/dev/**").permitAll();
+                }
+                auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll();
+                auth.anyRequest().authenticated();
+            })
             .addFilterBefore(jwtAuthFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
