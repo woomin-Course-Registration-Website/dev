@@ -64,4 +64,17 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
                                                @Param("year") int year,
                                                @Param("semester") int semester,
                                                @Param("studentIds") List<Long> studentIds);
+
+    /**
+     * 학생 ID 집합·연도·학기 기준으로 과목별 성적 입력 수를 한 번에 집계.
+     * 결과: [subjectId, count]. 데이터가 없는 과목은 결과에 포함되지 않으므로
+     * 호출 측에서 0으로 채워야 한다.
+     */
+    @Query("SELECT g.subject.id, COUNT(g) FROM Grade g " +
+           "WHERE g.year = :year AND g.semester = :semester " +
+           "AND g.student.id IN :studentIds " +
+           "GROUP BY g.subject.id")
+    List<Object[]> countByYearSemesterGroupedBySubject(@Param("year") int year,
+                                                       @Param("semester") int semester,
+                                                       @Param("studentIds") List<Long> studentIds);
 }

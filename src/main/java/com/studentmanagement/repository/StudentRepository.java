@@ -22,6 +22,16 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Query("SELECT s FROM Student s WHERE s.user.id = :userId")
     Optional<Student> findByUserId(@Param("userId") Long userId);
 
+    /**
+     * 학년·반 조건에 해당하는 학생들의 ID만 조회.
+     * 통계 집계처럼 학생 본문이 필요 없는 경우 사용해 메모리/네트워크 비용을 줄인다.
+     */
+    @Query("SELECT s.id FROM Student s WHERE " +
+           "(:grade IS NULL OR s.grade = :grade) AND " +
+           "(:classNum IS NULL OR s.classNum = :classNum)")
+    List<Long> findIdsByFilters(@Param("grade") Integer grade,
+                                @Param("classNum") Integer classNum);
+
     Optional<Student> findByGradeAndClassNumAndStudentNum(int grade, int classNum, int studentNum);
 
     @Query("SELECT COUNT(s) > 0 FROM Student s JOIN s.parents p WHERE s.id = :studentId AND p.id = :parentId")

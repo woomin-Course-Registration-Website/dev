@@ -227,16 +227,49 @@ class GradeServiceTest {
 
     @Test
     void getStats_calculatesEnteredCountCorrectly() {
-        given(studentRepository.findByFilters(2, 3, null)).willReturn(List.of(student));
+        given(studentRepository.findIdsByFilters(2, 3)).willReturn(List.of(10L));
         given(subjectRepository.findAll()).willReturn(List.of(subject));
-        given(gradeRepository.countBySubjectYearSemesterAndStudents(any(), anyInt(), anyInt(), any()))
-                .willReturn(1L);
+        List<Object[]> grouped = new java.util.ArrayList<>();
+        grouped.add(new Object[]{100L, 1L});
+        given(gradeRepository.countByYearSemesterGroupedBySubject(eq(2025), eq(1), anyList()))
+                .willReturn(grouped);
 
         List<GradeStatsItem> stats = gradeService.getStats(2, 3, 2025, 1);
 
         assertThat(stats).hasSize(1);
         assertThat(stats.get(0).getGradeCount()).isEqualTo(1L);
         assertThat(stats.get(0).getStudentCount()).isEqualTo(1L);
+    }
+
+    @Test
+    void getStats_whenSubjectHasNoGrades_returnsZeroCount() {
+        given(studentRepository.findIdsByFilters(2, 3)).willReturn(List.of(10L));
+        Subject anotherSubject = TestFixtures.subject();
+        com.studentmanagement.fixture.TestFixtures.setId(anotherSubject, 101L);
+        given(subjectRepository.findAll()).willReturn(List.of(subject, anotherSubject));
+        // 한 과목만 결과에 포함 — 미입력 과목은 GROUP BY 결과에 없으므로 0으로 채워야 한다
+        List<Object[]> grouped = new java.util.ArrayList<>();
+        grouped.add(new Object[]{100L, 2L});
+        given(gradeRepository.countByYearSemesterGroupedBySubject(eq(2025), eq(1), anyList()))
+                .willReturn(grouped);
+
+        List<GradeStatsItem> stats = gradeService.getStats(2, 3, 2025, 1);
+
+        assertThat(stats).extracting(GradeStatsItem::getGradeCount).containsExactly(2L, 0L);
+    }
+
+    @Test
+    void getStats_whenNoStudents_returnsZeroCountWithoutGradeQuery() {
+        given(studentRepository.findIdsByFilters(2, 3)).willReturn(List.of());
+        given(subjectRepository.findAll()).willReturn(List.of(subject));
+
+        List<GradeStatsItem> stats = gradeService.getStats(2, 3, 2025, 1);
+
+        assertThat(stats).hasSize(1);
+        assertThat(stats.get(0).getGradeCount()).isZero();
+        assertThat(stats.get(0).getStudentCount()).isZero();
+        verify(gradeRepository, org.mockito.Mockito.never())
+                .countByYearSemesterGroupedBySubject(anyInt(), anyInt(), anyList());
     }
 
     // ── helpers ───────────────────────────────────────────────────────

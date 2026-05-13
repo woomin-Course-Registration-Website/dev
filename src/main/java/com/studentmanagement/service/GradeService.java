@@ -149,22 +149,31 @@ public class GradeService {
     /**
      * 과목별 성적 입력 현황 (대시보드용)
      * 각 과목에 대해 해당 학급 학생 중 성적이 입력된 수와 전체 학생 수를 반환합니다.
+     *
+     * 최적화:
+     * - 학생 ID만 fetch해 Student 엔티티를 메모리에 적재하지 않는다.
+     * - 과목별 count는 GROUP BY 한 번으로 집계해 N+1을 회피한다.
      */
     public List<GradeStatsItem> getStats(Integer grade, Integer classNum, Integer year, Integer semester) {
         int y = (year     != null) ? year     : java.time.LocalDate.now().getYear();
         int s = (semester != null) ? semester : 1;
 
-        List<Student> students = studentRepository.findByFilters(grade, classNum, null);
-        List<Long> studentIds  = students.stream().map(Student::getId).toList();
-        long studentCount      = studentIds.size();
+        List<Long> studentIds = studentRepository.findIdsByFilters(grade, classNum);
+        long studentCount = studentIds.size();
+
+        Map<Long, Long> countBySubjectId = studentIds.isEmpty()
+                ? Map.of()
+                : gradeRepository.countByYearSemesterGroupedBySubject(y, s, studentIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> ((Number) row[1]).longValue()));
 
         return subjectRepository.findAll().stream()
-                .map(subject -> {
-                    long count = studentIds.isEmpty() ? 0
-                            : gradeRepository.countBySubjectYearSemesterAndStudents(
-                                subject.getId(), y, s, studentIds);
-                    return new GradeStatsItem(subject.getName(), count, studentCount);
-                })
+                .map(subject -> new GradeStatsItem(
+                        subject.getName(),
+                        countBySubjectId.getOrDefault(subject.getId(), 0L),
+                        studentCount))
                 .toList();
     }
 
