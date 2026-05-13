@@ -1,5 +1,6 @@
 import axios from 'axios'
 import useAuthStore from '../store/authStore'
+import useToastStore from '../store/toastStore'
 
 /**
  * axios 기본 인스턴스
@@ -8,8 +9,20 @@ import useAuthStore from '../store/authStore'
  * - 401 응답 시 refreshToken으로 재발급을 시도하고 원래 요청을 재전송합니다.
  * - 재발급 실패 시 로그아웃 처리합니다.
  * - 재발급 성공 시 zustand authStore에도 새 토큰을 반영해 store-localStorage 불일치를 방지합니다.
+ * - 비-2xx 응답 (401 refresh 시도 제외)은 자동으로 토스트를 띄웁니다.
+ *   호출 측에서 토스트를 띄우고 싶지 않으면 config.silent: true 로 표시하세요.
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
+/** 응답 body에서 사용자에게 보여줄 메시지를 추출 */
+function extractMessage(error) {
+  const data = error?.response?.data
+  if (typeof data === 'string') return data
+  if (data?.message) return data.message
+  if (error?.message === 'Network Error') return '네트워크 연결을 확인해주세요.'
+  if (error?.code === 'ECONNABORTED') return '요청 시간이 초과되었습니다.'
+  return '요청 처리 중 오류가 발생했습니다.'
+}
 
 const client = axios.create({
   baseURL: API_BASE,
@@ -36,9 +49,14 @@ client.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
+    const status = error.response?.status
 
-    // 401이고 재시도가 아닌 경우에만 refresh 시도
-    if (error.response?.status !== 401 || original._retry) {
+    // 401이고 재시도가 아닌 경우에만 refresh 시도 — 토스트는 띄우지 않음
+    if (status !== 401 || original?._retry) {
+      // 토스트 자동 노출 (silent:true 옵션으로 옵트아웃 가능)
+      if (status && !original?.silent) {
+        useToastStore.getState().error(extractMessage(error))
+      }
       return Promise.reject(error)
     }
 
@@ -78,6 +96,7 @@ client.interceptors.response.use(
       return client(original)
     } catch (err) {
       processQueue(err, null)
+      useToastStore.getState().error('세션이 만료되었습니다. 다시 로그인해주세요.')
       logout()
       return Promise.reject(err)
     } finally {
