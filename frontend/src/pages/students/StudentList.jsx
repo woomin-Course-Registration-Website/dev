@@ -69,8 +69,9 @@ export default function StudentList() {
       </div>
 
       {/* 필터 바 */}
-      <div className="card p-4 flex flex-wrap gap-3 items-center">
+      <div className="card p-4 flex flex-wrap gap-3 items-center" role="search" aria-label="학생 검색 필터">
         <select
+          aria-label="학년 필터"
           value={gradeFilter}
           onChange={(e) => setGradeFilter(e.target.value)}
           className="input w-28 h-9 py-1.5"
@@ -81,6 +82,7 @@ export default function StudentList() {
           <option value="3">3학년</option>
         </select>
         <select
+          aria-label="반 필터"
           value={classFilter}
           onChange={(e) => setClassFilter(e.target.value)}
           className="input w-24 h-9 py-1.5"
@@ -89,10 +91,11 @@ export default function StudentList() {
           {[1,2,3,4,5,6].map((c) => <option key={c} value={c}>{c}반</option>)}
         </select>
         <div className="relative flex-1 min-w-48">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <svg aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
           <input
+            aria-label="학생 이름 검색"
             placeholder="학생 이름 검색"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
