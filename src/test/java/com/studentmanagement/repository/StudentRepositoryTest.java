@@ -75,4 +75,31 @@ class StudentRepositoryTest {
         List<Student> linked = studentRepository.findByParentId(parent.getId());
         assertThat(linked).extracting(Student::getId).containsExactly(s1.getId());
     }
+
+    @Test
+    void findByFiltersPaged_paginatesAndReportsTotals() {
+        // 동일 학년/반에 5명 추가 — 총 7명 중 학년1·반1 = 4명 (s1, s2 + 신규 2명)
+        for (int i = 3; i <= 4; i++) {
+            studentRepository.save(new com.studentmanagement.domain.Student("학생" + i, 1, 1, i + 1));
+        }
+
+        org.springframework.data.domain.Page<Student> firstPage = studentRepository.findByFiltersPaged(
+                1, 1, null,
+                org.springframework.data.domain.PageRequest.of(0, 2,
+                        org.springframework.data.domain.Sort.by("studentNum")));
+
+        assertThat(firstPage.getContent()).hasSize(2);
+        assertThat(firstPage.getTotalElements()).isEqualTo(4);
+        assertThat(firstPage.getTotalPages()).isEqualTo(2);
+        assertThat(firstPage.isFirst()).isTrue();
+        assertThat(firstPage.isLast()).isFalse();
+
+        org.springframework.data.domain.Page<Student> secondPage = studentRepository.findByFiltersPaged(
+                1, 1, null,
+                org.springframework.data.domain.PageRequest.of(1, 2,
+                        org.springframework.data.domain.Sort.by("studentNum")));
+
+        assertThat(secondPage.getContent()).hasSize(2);
+        assertThat(secondPage.isLast()).isTrue();
+    }
 }

@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,11 +40,9 @@ public class StudentController {
     }
 
     @Operation(
-        summary = "학생 목록 조회",
-        description = "전체 학생 목록을 반환합니다. 학년·반·이름으로 필터링 가능합니다.\n\n" +
-                      "- `grade`: 학년 필터 (1~3)\n" +
-                      "- `classNum`: 반 필터\n" +
-                      "- `keyword`: 이름 검색 (부분 일치)"
+        summary = "학생 목록 조회 (전체)",
+        description = "전체 학생 목록을 한 번에 반환합니다. 학년·반·이름으로 필터링 가능합니다.\n\n" +
+                      "데이터 규모가 큰 운영 환경에서는 `/api/students/page` (페이지네이션) 사용을 권장합니다."
     )
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -55,6 +55,28 @@ public class StudentController {
             @Parameter(description = "반 필터") @RequestParam(required = false) Integer classNum,
             @Parameter(description = "이름 검색 키워드") @RequestParam(required = false) String keyword) {
         return ResponseEntity.ok(ApiResponse.ok(studentService.getAll(grade, classNum, keyword)));
+    }
+
+    @Operation(
+        summary = "학생 목록 페이지네이션 조회",
+        description = "학생 목록을 페이지 단위로 반환합니다.\n\n" +
+                      "- `page`: 0-based 페이지 번호 (기본 0)\n" +
+                      "- `size`: 페이지당 항목 수 (기본 20, 최대 100)\n" +
+                      "- `sort`: 정렬 기준 (예: `name,asc`). 미지정 시 학년·반·번호 오름차순"
+    )
+    @GetMapping("/page")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<?> getPage(
+            @Parameter(description = "학년 필터 (1~3)") @RequestParam(required = false) Integer grade,
+            @Parameter(description = "반 필터") @RequestParam(required = false) Integer classNum,
+            @Parameter(description = "이름 검색 키워드") @RequestParam(required = false) String keyword,
+            @PageableDefault(size = 20) Pageable pageable) {
+        // 악의적 큰 size 값으로 인한 메모리 압박 방지
+        int safeSize = Math.min(pageable.getPageSize(), 100);
+        Pageable bounded = org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(), safeSize, pageable.getSort());
+        return ResponseEntity.ok(ApiResponse.ok(
+                studentService.getPage(grade, classNum, keyword, bounded)));
     }
 
     @Operation(summary = "내 학생 정보 조회", description = "현재 로그인한 STUDENT 계정에 연동된 학생 정보를 반환합니다.")
