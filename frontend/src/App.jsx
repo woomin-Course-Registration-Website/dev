@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore'
 import Layout from './components/common/Layout'
+import Toaster from './components/common/Toaster'
 import Login from './pages/Login'
 import Register from './pages/Register'
 
@@ -23,6 +24,7 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster />
       <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
         <Routes>
           <Route path="/login" element={<Login />} />

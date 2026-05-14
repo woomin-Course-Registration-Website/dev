@@ -4,6 +4,7 @@ import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.record.StudentRecordRequest;
 import com.studentmanagement.service.StudentRecordService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -74,7 +75,7 @@ public class StudentRecordController {
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<?> update(
             @Parameter(description = "학생 ID") @PathVariable Long studentId,
-            @RequestBody StudentRecordRequest request) {
+            @Valid @RequestBody StudentRecordRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(recordService.update(studentId, request)));
     }
 }

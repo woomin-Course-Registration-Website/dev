@@ -2,11 +2,13 @@ package com.studentmanagement.service;
 
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.User;
+import com.studentmanagement.dto.PagedResponse;
 import com.studentmanagement.dto.student.StudentRequest;
 import com.studentmanagement.dto.student.StudentResponse;
 import com.studentmanagement.exception.ResourceNotFoundException;
 import com.studentmanagement.repository.StudentRepository;
 import com.studentmanagement.repository.UserRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +42,22 @@ public class StudentService {
     public List<StudentResponse> getAll(Integer grade, Integer classNum, String keyword) {
         return studentRepository.findByFilters(grade, classNum, keyword)
                 .stream().map(StudentResponse::new).toList();
+    }
+
+    /**
+     * 학생 목록 페이지네이션 조회.
+     * 정렬은 Pageable에 지정한 sort를 사용하거나, 미지정 시 학년·반·번호 오름차순으로 강제한다.
+     */
+    public PagedResponse<StudentResponse> getPage(Integer grade, Integer classNum, String keyword,
+                                                  Pageable pageable) {
+        Pageable effective = pageable.getSort().isSorted()
+                ? pageable
+                : org.springframework.data.domain.PageRequest.of(
+                        pageable.getPageNumber(), pageable.getPageSize(),
+                        org.springframework.data.domain.Sort.by("grade", "classNum", "studentNum"));
+        return PagedResponse.of(
+                studentRepository.findByFiltersPaged(grade, classNum, keyword, effective),
+                StudentResponse::new);
     }
 
     /** 학생 상세 조회 */
