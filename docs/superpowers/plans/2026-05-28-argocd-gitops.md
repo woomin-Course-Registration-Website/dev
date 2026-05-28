@@ -897,6 +897,11 @@ Expected: 모든 라인 OK + `ALL STATIC CHECKS PASSED`.
 
 > 이 Task는 실제 AWS/클러스터에 적용한다. 자동 검증 불가. PR 머지 전 `feature/EP-XX-argocd-gitops` 브랜치에서 수행하거나, 머지 후 운영자가 실행.
 
+**운영 전제조건 (코드 리뷰에서 발견 — 미충족 시 런타임 실패):**
+- **`main` 브랜치 보호 규칙**: cd.yml write-back은 `github-actions[bot]`이 `main`에 직접 push한다. 브랜치 보호가 직접 push를 막으면 403으로 실패 → `github-actions[bot]` 예외 허용, 또는 PAT/GitHub App 토큰 사용, 또는 write-back을 별도 브랜치+PR로 변경 필요.
+- **"Allow GitHub Actions to create pull requests" 설정**: promote.yml이 PR을 생성하려면 repo/org Settings → Actions에서 이 옵션이 켜져 있어야 한다.
+- **태그(`v*`) push 주의**: cd.yml의 `paths-ignore`는 태그 push에도 적용되어, k8s 파일만 바뀐 커밋에 태그를 달면 이미지 빌드가 스킵될 수 있다. 릴리스 태그는 앱 코드 변경 커밋에 부여할 것.
+
 - [ ] **Step 1: 환경 시크릿 값 주입**
 
 ```bash
