@@ -24,21 +24,21 @@ module "rds" {
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  backup_retention_period   = 7
-  backup_window             = "03:00-04:00"
-  maintenance_window        = "Mon:04:00-Mon:05:00"
+  backup_retention_period = 7
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "Mon:04:00-Mon:05:00"
 
   deletion_protection       = true
   skip_final_snapshot       = false
-  final_snapshot_identifier = "${var.project}-db-final-snapshot"
+  final_snapshot_identifier_prefix = "${var.project}-db-final-snapshot"
 
   performance_insights_enabled          = true
   performance_insights_retention_period = 7
 
   parameters = [
-    { name = "character_set_client",  value = "utf8mb4" },
-    { name = "character_set_server",  value = "utf8mb4" },
-    { name = "collation_server",      value = "utf8mb4_unicode_ci" },
-    { name = "time_zone",             value = "Asia/Seoul" },
+    { name = "character_set_client", value = "utf8mb4" },
+    { name = "character_set_server", value = "utf8mb4" },
+    { name = "collation_server", value = "utf8mb4_unicode_ci" },
+    { name = "time_zone", value = "Asia/Seoul" },
   ]
 }

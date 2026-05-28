@@ -44,8 +44,8 @@ resource "aws_acm_certificate" "cloudfront" {
 }
 
 resource "aws_acm_certificate_validation" "cloudfront" {
-  provider                = aws.us_east_1
-  certificate_arn         = aws_acm_certificate.cloudfront.arn
+  provider        = aws.us_east_1
+  certificate_arn = aws_acm_certificate.cloudfront.arn
   # ap-northeast-2에서 만든 DNS 검증 레코드를 공유
   validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
 }
