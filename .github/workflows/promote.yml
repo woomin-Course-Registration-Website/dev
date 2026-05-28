@@ -30,10 +30,17 @@ jobs:
           tar -xzf kustomize.tar.gz
           sudo mv kustomize /usr/local/bin/
 
+      - name: Set up yq
+        run: |
+          YQ_VERSION=4.44.3
+          sudo curl -sL -o /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Copy pinned images from source to target overlay
         run: |
           for svc in backend frontend; do
             IMG=$(yq ".images[] | select(.name == \"student-mgmt/$svc\") | .newName + \":\" + .newTag" "k8s/overlays/${{ inputs.from }}/kustomization.yaml")
+            if [ -z "$IMG" ] || [ "$IMG" = "null" ]; then echo "ERROR: ${{ inputs.from }} overlay에서 student-mgmt/$svc 이미지를 찾지 못함"; exit 1; fi
             (cd "k8s/overlays/${{ inputs.to }}" && kustomize edit set image "student-mgmt/$svc=$IMG")
           done
 
