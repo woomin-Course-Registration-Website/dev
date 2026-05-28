@@ -4,16 +4,12 @@ metadata:
   name: main
   namespace: student-mgmt
   annotations:
+    argocd.argoproj.io/sync-wave: "2"
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
-    # terraform output acm_cert_arn 값으로 교체
-    alb.ingress.kubernetes.io/certificate-arn: "${ACM_CERT_ARN}"
-    alb.ingress.kubernetes.io/group.name: student-mgmt
-    # ExternalDNS가 이 hostname으로 Route53 레코드 자동 생성
-    external-dns.alpha.kubernetes.io/hostname: "${ALB_HOSTNAME}"
 spec:
   ingressClassName: alb
   rules:

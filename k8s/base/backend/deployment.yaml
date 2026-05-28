@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: backend
   namespace: student-mgmt
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: 2
   selector:
@@ -11,8 +13,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1       # 배포 중 최대 3개 Pod 허용
-      maxUnavailable: 0 # 항상 2개 이상 유지 — 무중단 보장
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -20,7 +22,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: ${ECR_BACKEND_IMAGE}:${IMAGE_TAG}  # CD에서 envsubst로 치환
+        image: student-mgmt/backend
         ports:
         - containerPort: 8080
         env:
@@ -28,7 +30,7 @@ spec:
           value: "prod"
         envFrom:
         - secretRef:
-            name: backend-secrets  # ExternalSecret이 Secrets Manager에서 동기화
+            name: backend-secrets
         resources:
           requests:
             cpu: "250m"
@@ -50,5 +52,4 @@ spec:
           initialDelaySeconds: 60
           periodSeconds: 30
           failureThreshold: 3
-      # Spring Boot graceful shutdown을 위한 대기 시간
       terminationGracePeriodSeconds: 60
