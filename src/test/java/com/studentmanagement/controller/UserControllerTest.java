@@ -141,7 +141,7 @@ class UserControllerTest {
     @Test
     void delete_admin_returns200() throws Exception {
         SecurityTestHelper.stubAsAdmin(jwtUtil);
-        willDoNothing().given(userService).delete(anyLong());
+        willDoNothing().given(userService).delete(anyLong(), anyString());
 
         mockMvc.perform(delete("/api/users/1").header("Authorization", FAKE_TOKEN))
                 .andExpect(status().isOk());

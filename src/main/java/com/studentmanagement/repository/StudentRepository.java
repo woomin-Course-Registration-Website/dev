@@ -24,6 +24,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     Optional<Student> findByGradeAndClassNumAndStudentNum(int grade, int classNum, int studentNum);
 
+    boolean existsByGradeAndClassNumAndStudentNum(int grade, int classNum, int studentNum);
+
+    boolean existsByGradeAndClassNumAndStudentNumAndIdNot(int grade, int classNum, int studentNum, Long id);
+
     @Query("SELECT COUNT(s) > 0 FROM Student s JOIN s.parents p WHERE s.id = :studentId AND p.id = :parentId")
     boolean existsByIdAndParentId(@Param("studentId") Long studentId, @Param("parentId") Long parentId);
 

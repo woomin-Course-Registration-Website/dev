@@ -91,7 +91,7 @@ class StudentServiceTest {
     @Test
     void create_withUserId_linksUserAccount() {
         StudentRequest req = studentRequest("김학생", 1, 2, 5, 1L);
-        given(userRepository.findById(1L)).willReturn(Optional.of(teacher));
+        given(userRepository.findById(1L)).willReturn(Optional.of(TestFixtures.studentUser()));
         given(studentRepository.save(any(Student.class))).willAnswer(inv -> {
             Student s = inv.getArgument(0);
             TestFixtures.setId(s, 20L);

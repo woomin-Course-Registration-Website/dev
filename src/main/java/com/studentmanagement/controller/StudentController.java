@@ -5,6 +5,7 @@ import com.studentmanagement.dto.ApiResponse;
 import com.studentmanagement.dto.student.ParentLinkRequest;
 import com.studentmanagement.dto.student.StudentRequest;
 import com.studentmanagement.service.CounselingService;
+import com.studentmanagement.service.StudentAccessService;
 import com.studentmanagement.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,10 +31,14 @@ import org.springframework.web.bind.annotation.*;
 public class StudentController {
 
     private final StudentService studentService;
+    private final StudentAccessService studentAccessService;
     private final CounselingService counselingService;
 
-    public StudentController(StudentService studentService, CounselingService counselingService) {
+    public StudentController(StudentService studentService,
+                             StudentAccessService studentAccessService,
+                             CounselingService counselingService) {
         this.studentService = studentService;
+        this.studentAccessService = studentAccessService;
         this.counselingService = counselingService;
     }
 
@@ -76,7 +81,9 @@ public class StudentController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT', 'PARENT')")
     public ResponseEntity<?> getById(
-            @Parameter(description = "학생 ID") @PathVariable Long id) {
+            @Parameter(description = "학생 ID") @PathVariable Long id,
+            Authentication auth) {
+        studentAccessService.check(id, auth.getName(), getRole(auth));
         return ResponseEntity.ok(ApiResponse.ok(studentService.getById(id)));
     }
 
@@ -146,11 +153,15 @@ public class StudentController {
     public ResponseEntity<?> getPublicCounselings(
             @Parameter(description = "학생 ID") @PathVariable Long id,
             Authentication auth) {
-        User.Role role = User.Role.valueOf(
+        User.Role role = getRole(auth);
+        return ResponseEntity.ok(ApiResponse.ok(
+                counselingService.getPublicForStudent(id, auth.getName(), role)));
+    }
+
+    private User.Role getRole(Authentication auth) {
+        return User.Role.valueOf(
                 auth.getAuthorities().stream().findFirst()
                         .map(a -> a.getAuthority().replace("ROLE_", ""))
                         .orElseThrow());
-        return ResponseEntity.ok(ApiResponse.ok(
-                counselingService.getPublicForStudent(id, auth.getName(), role)));
     }
 }

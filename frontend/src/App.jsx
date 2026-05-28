@@ -15,9 +15,12 @@ const Reports = lazy(() => import('./pages/reports/Reports'))
 const Settings = lazy(() => import('./pages/settings/Settings'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
-function PrivateRoute({ children }) {
+function PrivateRoute({ children, roles }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  return isAuthenticated ? children : <Navigate to="/login" replace />
+  const user = useAuthStore((s) => s.user)
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (roles && !roles.includes(user?.role)) return <Navigate to="/dashboard" replace />
+  return children
 }
 
 export default function App() {
@@ -44,7 +47,14 @@ export default function App() {
             <Route path="counseling" element={<CounselingManagement />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
-            <Route path="admin" element={<AdminUsers />} />
+            <Route
+              path="admin"
+              element={
+                <PrivateRoute roles={['ADMIN']}>
+                  <AdminUsers />
+                </PrivateRoute>
+              }
+            />
           </Route>
         </Routes>
       </Suspense>
