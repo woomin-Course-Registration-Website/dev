@@ -33,8 +33,3 @@ output "acm_cert_arn" {
   description = "k8s/ingress.yaml annotation에 입력"
   value       = aws_acm_certificate_validation.main.certificate_arn
 }
-
-output "reports_bucket" {
-  description = "리포트 파일 저장 S3 버킷명"
-  value       = aws_s3_bucket.reports.bucket
-}

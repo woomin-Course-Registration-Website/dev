@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
+      image_tag: ${{ github.sha }}  # IMMUTABLE ECR — 커밋 SHA로 고유 태그 보장
       ecr_registry: ${{ steps.ecr_login.outputs.registry }}
 
     steps:
@@ -37,18 +37,6 @@ jobs:
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/backend
-            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/frontend
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=sha,prefix=sha-
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -59,8 +47,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/backend:${{ steps.meta.outputs.version }}
-            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/backend:latest
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -71,8 +58,7 @@ jobs:
           file: frontend/Dockerfile
           push: true
           tags: |
-            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/frontend:${{ steps.meta.outputs.version }}
-            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/frontend:latest
+            ${{ steps.ecr_login.outputs.registry }}/student-mgmt/frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -118,7 +104,10 @@ jobs:
           kubectl apply -f k8s/backend/pdb.yaml
           kubectl apply -f k8s/frontend/service.yaml
           kubectl apply -f k8s/frontend/hpa.yaml
+          kubectl apply -f k8s/frontend/pdb.yaml
           envsubst < k8s/ingress.yaml | kubectl apply -f -
+          # ServiceMonitor (kube-prometheus-stack CRD가 Terraform으로 사전 설치돼 있어야 함)
+          kubectl apply -f k8s/monitoring/servicemonitor.yaml
 
       - name: Deploy backend (무중단 Rolling Update)
         env:

@@ -4,6 +4,14 @@ resource "aws_cloudfront_distribution" "main" {
   comment         = "${var.project} CDN"
   aliases         = [var.domain_name, "www.${var.domain_name}"]
 
+  web_acl_id = aws_wafv2_web_acl.cloudfront.arn
+
+  logging_config {
+    bucket          = aws_s3_bucket.cf_logs.bucket_domain_name
+    include_cookies = false
+    prefix          = "cloudfront/"
+  }
+
   # ExternalDNS가 생성하는 alb.도메인 레코드를 Origin으로 사용
   origin {
     domain_name = "alb.${var.domain_name}"

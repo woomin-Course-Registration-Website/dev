@@ -23,6 +23,12 @@ variable "eks_node_instance_type" {
   default = "t3.medium"
 }
 
+variable "cluster_endpoint_public_access_cidrs" {
+  description = "EKS 퍼블릭 API 엔드포인트 접근 허용 CIDR. 운영 시 사무실/VPN IP로 좁히는 것을 권장."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 variable "eks_node_desired" {
   type    = number
   default = 2
