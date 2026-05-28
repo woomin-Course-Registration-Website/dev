@@ -71,3 +71,9 @@ variable "github_repo" {
   type    = string
   default = "dev"
 }
+
+variable "argocd_chart_version" {
+  description = "argo-cd helm 차트 버전"
+  type        = string
+  default     = "7.7.7"
+}

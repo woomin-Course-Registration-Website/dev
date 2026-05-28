@@ -185,7 +185,10 @@ resource "helm_release" "aws_lbc" {
   namespace  = "kube-system"
   version    = "1.8.1"
 
-  set { name = "clusterName"; value = module.eks.cluster_name }
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = module.lbc_irsa.iam_role_arn
@@ -217,8 +220,14 @@ resource "helm_release" "cluster_autoscaler" {
   namespace  = "kube-system"
   version    = "9.37.0"
 
-  set { name = "autoDiscovery.clusterName"; value = module.eks.cluster_name }
-  set { name = "awsRegion"; value = var.aws_region }
+  set {
+    name  = "autoDiscovery.clusterName"
+    value = module.eks.cluster_name
+  }
+  set {
+    name  = "awsRegion"
+    value = var.aws_region
+  }
   set {
     name  = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = module.cluster_autoscaler_irsa.iam_role_arn
@@ -246,8 +255,14 @@ resource "helm_release" "external_dns" {
   namespace  = "kube-system"
   version    = "1.14.5"
 
-  set { name = "provider"; value = "aws" }
-  set { name = "aws.region"; value = var.aws_region }
+  set {
+    name  = "provider"
+    value = "aws"
+  }
+  set {
+    name  = "aws.region"
+    value = var.aws_region
+  }
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = module.external_dns_irsa.iam_role_arn
@@ -299,16 +314,34 @@ resource "helm_release" "aws_for_fluent_bit" {
   namespace  = "kube-system"
   version    = "0.1.34"
 
-  set { name = "serviceAccount.name"; value = "aws-for-fluent-bit" }
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-for-fluent-bit"
+  }
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = module.fluentbit_irsa.iam_role_arn
   }
-  set { name = "cloudWatchLogs.enabled"; value = "true" }
-  set { name = "cloudWatchLogs.region"; value = var.aws_region }
-  set { name = "cloudWatchLogs.logGroupName"; value = aws_cloudwatch_log_group.app.name }
-  set { name = "cloudWatchLogs.autoCreateGroup"; value = "false" }
-  set { name = "cloudWatchLogs.logStreamPrefix"; value = "pod-" }
+  set {
+    name  = "cloudWatchLogs.enabled"
+    value = "true"
+  }
+  set {
+    name  = "cloudWatchLogs.region"
+    value = var.aws_region
+  }
+  set {
+    name  = "cloudWatchLogs.logGroupName"
+    value = aws_cloudwatch_log_group.app.name
+  }
+  set {
+    name  = "cloudWatchLogs.autoCreateGroup"
+    value = "false"
+  }
+  set {
+    name  = "cloudWatchLogs.logStreamPrefix"
+    value = "pod-"
+  }
 
   depends_on = [module.eks]
 }
@@ -324,8 +357,80 @@ resource "helm_release" "kube_prometheus_stack" {
   version          = "65.1.1"
 
   # student-mgmt 네임스페이스의 ServiceMonitor도 스크랩하도록 라벨 셀렉터 해제
-  set { name = "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues"; value = "false" }
-  set { name = "prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues"; value = "false" }
+  set {
+    name  = "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues"
+    value = "false"
+  }
+  set {
+    name  = "prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues"
+    value = "false"
+  }
 
   depends_on = [module.eks]
+}
+
+# ── Argo CD (GitOps) ─────────────────────────────────────────────────────────
+
+resource "helm_release" "argocd" {
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  namespace        = "argocd"
+  create_namespace = true
+  version          = var.argocd_chart_version
+
+  values = [yamlencode({
+    configs = {
+      params = { "server.insecure" = true }
+      cm = {
+        "resource.customizations.health.external-secrets.io_ExternalSecret" = <<-EOT
+          hs = {}
+          if obj.status ~= nil and obj.status.conditions ~= nil then
+            for _, c in ipairs(obj.status.conditions) do
+              if c.type == "Ready" and c.status == "True" then
+                hs.status = "Healthy"; hs.message = c.message; return hs
+              end
+            end
+          end
+          hs.status = "Progressing"; hs.message = "Waiting for ExternalSecret to be Ready"
+          return hs
+        EOT
+      }
+    }
+    server = {
+      ingress = {
+        enabled          = true
+        ingressClassName = "alb"
+        hostname         = "argocd.${var.domain_name}"
+        annotations = {
+          "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
+          "alb.ingress.kubernetes.io/target-type"     = "ip"
+          "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTP\":80},{\"HTTPS\":443}]"
+          "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
+          "alb.ingress.kubernetes.io/certificate-arn" = aws_acm_certificate_validation.main.certificate_arn
+          "alb.ingress.kubernetes.io/group.name"      = "argocd"
+          "external-dns.alpha.kubernetes.io/hostname" = "argocd.${var.domain_name}"
+        }
+      }
+    }
+  })]
+
+  depends_on = [module.eks, helm_release.aws_lbc]
+}
+
+resource "helm_release" "argocd_bootstrap" {
+  name      = "argocd-bootstrap"
+  chart     = "${path.module}/../../k8s/bootstrap"
+  namespace = "argocd"
+
+  set {
+    name  = "repoURL"
+    value = "https://github.com/${var.github_org}/${var.github_repo}.git"
+  }
+  set {
+    name  = "region"
+    value = var.aws_region
+  }
+
+  depends_on = [helm_release.argocd, helm_release.external_secrets]
 }
