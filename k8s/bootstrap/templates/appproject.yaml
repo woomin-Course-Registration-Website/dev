@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: student-mgmt
+  namespace: argocd
+spec:
+  description: student-mgmt workloads
+  sourceRepos:
+    - {{ .Values.repoURL | quote }}
+  destinations:
+{{- range .Values.environments }}
+    - server: https://kubernetes.default.svc
+      namespace: student-mgmt-{{ . }}
+{{- end }}
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
