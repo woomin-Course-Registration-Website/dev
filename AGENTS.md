@@ -144,7 +144,7 @@ SecurityTestHelper.stubAsInvalid(jwtUtil);
 ## CI/CD
 
 - **CI** (`.github/workflows/ci.yml`): `main`/`develop` 브랜치 push/PR 시 실행. 실제 MySQL 컨테이너로 `SPRING_PROFILES_ACTIVE: dev`에서 테스트 → JAR 빌드.
-- **CD** (`.github/workflows/cd.yml`): `main` push 시 Docker Hub에 백엔드 이미지 push → AWS S3에 번들 업로드 → AWS CodeDeploy로 배포. `docker-compose.prod.yml`은 Docker Hub에서 pre-built 이미지를 사용하는 프로덕션 전용 Compose 파일.
+- **CD** (`.github/workflows/cd.yml`): `main` push 시 OIDC로 AWS 인증 → **ECR**에 backend·frontend 이미지 빌드/푸시 → `kubectl`로 **EKS 롤링 무중단 배포** (rollout status 확인). 프로덕션 인프라는 **Terraform**(`infra/terraform/`)으로 VPC·EKS·RDS·ECR·Secrets Manager·ACM·CloudFront·CloudWatch를 관리하고, **k8s 매니페스트**(`k8s/`)로 Deployment·Service·HPA·PDB·Ingress·NetworkPolicy·ExternalSecrets를 구성.
 
 ## 상세 문서
 
