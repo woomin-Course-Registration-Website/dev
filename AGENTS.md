@@ -152,7 +152,9 @@ SecurityTestHelper.stubAsInvalid(jwtUtil);
 
 - [docs/API.md](docs/API.md) — REST API 전체 명세 (10개 도메인: Auth, Users, Students, Grades, Records, Feedback, Counseling, Notifications, Reports, Subjects)
 - [docs/ERD.md](docs/ERD.md) — DB 스키마 / 엔티티 관계
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 레이어 다이어그램, 패키지 구조
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 백엔드/프론트 코드 레이어·패키지 구조
+- [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) — 런타임 토폴로지·환경 분리·요청/배포 흐름·보안 경계
+- [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) — AWS 리소스 카탈로그·EKS 애드온·IAM/IRSA·Terraform 부트스트랩
 - [docs/DESIGN.md](docs/DESIGN.md) — UI 디자인 시스템
 - [docs/WIREFRAME.md](docs/WIREFRAME.md) — 페이지별 와이어프레임
 - [BACKLOG.md](BACKLOG.md) — 제품 백로그 (6 스프린트, 139 SP)
