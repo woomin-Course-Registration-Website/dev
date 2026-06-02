@@ -186,4 +186,40 @@ class UserControllerTest {
                     """))
                 .andExpect(status().isOk());
     }
+
+    // ── getTeachers ───────────────────────────────────────────────────
+
+    @Test
+    void getTeachers_teacher_returns200() throws Exception {
+        SecurityTestHelper.stubAsTeacher(jwtUtil);
+        given(userService.getTeachers()).willReturn(List.of());
+
+        mockMvc.perform(get("/api/users/teachers").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getTeachers_admin_returns200() throws Exception {
+        SecurityTestHelper.stubAsAdmin(jwtUtil);
+        given(userService.getTeachers()).willReturn(List.of());
+
+        mockMvc.perform(get("/api/users/teachers").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getTeachers_student_returns403() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+
+        mockMvc.perform(get("/api/users/teachers").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getTeachers_parent_returns403() throws Exception {
+        SecurityTestHelper.stubAsParent(jwtUtil);
+
+        mockMvc.perform(get("/api/users/teachers").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isForbidden());
+    }
 }

@@ -23,3 +23,7 @@ export const updateUser = (id, body) =>
 /** 사용자 삭제 (ADMIN) */
 export const deleteUser = (id) =>
   client.delete(`/users/${id}`).then((r) => r.data)
+
+/** 교사 목록 옵션 (TEACHER/ADMIN) → [{ id, name }] */
+export const getTeachers = () =>
+  client.get('/users/teachers').then((r) => r.data.data)

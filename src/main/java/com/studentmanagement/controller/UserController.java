@@ -33,6 +33,12 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(userService.updateName(auth.getName(), request.getName())));
     }
 
+    @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
+    @GetMapping("/teachers")
+    public ResponseEntity<?> getTeachers() {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getTeachers()));
+    }
+
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<?> getAll() {

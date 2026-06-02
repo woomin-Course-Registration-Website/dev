@@ -1,6 +1,7 @@
 package com.studentmanagement.service;
 
 import com.studentmanagement.domain.User;
+import com.studentmanagement.dto.user.TeacherOptionResponse;
 import com.studentmanagement.dto.user.UpdateUserRequest;
 import com.studentmanagement.dto.user.UserRequest;
 import com.studentmanagement.dto.user.UserResponse;
@@ -26,6 +27,11 @@ public class UserService {
 
     public List<UserResponse> getAll() {
         return userRepository.findAll().stream().map(UserResponse::new).toList();
+    }
+
+    public List<TeacherOptionResponse> getTeachers() {
+        return userRepository.findByRoleOrderByNameAsc(User.Role.TEACHER)
+                .stream().map(TeacherOptionResponse::new).toList();
     }
 
     public UserResponse getByEmail(String email) {
