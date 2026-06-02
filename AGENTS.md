@@ -144,7 +144,9 @@ SecurityTestHelper.stubAsInvalid(jwtUtil);
 ## CI/CD
 
 - **CI** (`.github/workflows/ci.yml`): `main`/`develop` 브랜치 push/PR 시 실행. 실제 MySQL 컨테이너로 `SPRING_PROFILES_ACTIVE: dev`에서 테스트 → JAR 빌드.
-- **CD** (`.github/workflows/cd.yml`): `main` push 시 OIDC로 AWS 인증 → **ECR**에 backend·frontend 이미지 빌드/푸시 → `kubectl`로 **EKS 롤링 무중단 배포** (rollout status 확인). 프로덕션 인프라는 **Terraform**(`infra/terraform/`)으로 VPC·EKS·RDS·ECR·Secrets Manager·ACM·CloudFront·CloudWatch를 관리하고, **k8s 매니페스트**(`k8s/`)로 Deployment·Service·HPA·PDB·Ingress·NetworkPolicy·ExternalSecrets를 구성.
+- **CD** (`.github/workflows/cd.yml`): `main` push 시 OIDC로 AWS 인증 → **ECR**에 backend·frontend 이미지 빌드/푸시(불변 태그 `github.sha`) → `kustomize edit set image`로 `k8s/overlays/dev`의 이미지 태그를 갱신·커밋(write-back). **CI에 클러스터 자격증명 없음** — Argo CD가 유일한 apply 주체.
+- **GitOps 배포**: **Argo CD**(EKS `argocd` 네임스페이스)가 git을 watch하여 `k8s/overlays/{env}`를 각 `student-mgmt-{env}` 네임스페이스에 동기화. dev는 자동 sync, staging/prod는 `promote.yml`(`workflow_dispatch`)이 만드는 승격 PR 머지로 반영. Argo CD·ApplicationSet·AppProject·ClusterSecretStore는 Terraform `helm_release`(`infra/terraform/eks.tf` + `k8s/bootstrap/` 로컬 차트)로 부트스트랩.
+- **인프라/매니페스트**: **Terraform**(`infra/terraform/`)으로 VPC·EKS·RDS·ECR·Secrets Manager·ACM·CloudFront·WAF·CloudWatch(Fluent Bit)·모니터링을 관리. **Kustomize**(`k8s/base` + `k8s/overlays/{dev,staging,prod}`)로 Deployment·Service·HPA·PDB·Ingress·NetworkPolicy·ExternalSecrets·ServiceMonitor를 환경별로 구성.
 
 ## 상세 문서
 
