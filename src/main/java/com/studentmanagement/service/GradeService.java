@@ -5,6 +5,7 @@ import com.studentmanagement.domain.Notification;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.Subject;
 import com.studentmanagement.domain.User;
+import com.studentmanagement.dto.grade.ClassGradeResponse;
 import com.studentmanagement.dto.grade.GradeRequest;
 import com.studentmanagement.dto.grade.GradeResponse;
 import com.studentmanagement.dto.grade.GradeStatsItem;
@@ -131,6 +132,16 @@ public class GradeService {
                     return new GradeStatsItem(subject.getName(), count, studentCount);
                 })
                 .toList();
+    }
+
+    /**
+     * 반/과목별 성적 일괄 조회 (성적 입력 화면용)
+     * grade/classNum/year/semester가 null이면 해당 조건은 무시됩니다.
+     */
+    public List<ClassGradeResponse> getGradesByClass(Long subjectId, Integer grade, Integer classNum,
+                                                     Integer year, Integer semester) {
+        return gradeRepository.findByClassAndSubject(subjectId, grade, classNum, year, semester)
+                .stream().map(ClassGradeResponse::new).toList();
     }
 
     /**

@@ -8,6 +8,14 @@ import client from './client'
 export const getGrades = (studentId, params = {}) =>
   client.get(`/students/${studentId}/grades`, { params }).then((r) => r.data.data)
 
+/**
+ * 반/과목별 성적 일괄 조회 (성적 입력 화면)
+ * @param {Object} params - { subjectId, grade, classNum, year, semester }
+ * @returns [{ studentId, id, score, gradeRank }]
+ */
+export const getGradesByClass = (params = {}) =>
+  client.get('/grades', { params }).then((r) => r.data.data)
+
 /** 성적 입력 */
 export const createGrade = (studentId, body) =>
   client.post(`/students/${studentId}/grades`, body).then((r) => r.data.data)

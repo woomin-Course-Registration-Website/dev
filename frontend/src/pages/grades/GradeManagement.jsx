@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getStudents } from '../../api/students'
-import { getGrades, createGrade, updateGrade } from '../../api/grades'
+import { getGradesByClass, createGrade, updateGrade } from '../../api/grades'
 import { getSubjects } from '../../api/subjects'
 
 function calcRank(score) {
@@ -51,7 +51,7 @@ export default function GradeManagement() {
     try {
       const [studentList, gradeList] = await Promise.all([
         getStudents({ grade: gradeFilter, classNum: classFilter }),
-        getGrades(null, { year, semester, subjectId }).catch(() => []),
+        getGradesByClass({ subjectId, grade: gradeFilter, classNum: classFilter, year, semester }).catch(() => []),
       ])
       // 학생 전체 조회 후 해당 반 필터
       setStudents(studentList ?? [])
