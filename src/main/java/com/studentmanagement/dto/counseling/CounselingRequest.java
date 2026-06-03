@@ -21,4 +21,7 @@ public class CounselingRequest {
     private String nextPlan;
 
     private Counseling.ShareScope shareScope = Counseling.ShareScope.ALL;
+
+    /** shareScope=SELECTED일 때 공유 대상 교사 ID 목록 */
+    private java.util.List<Long> sharedTeacherIds = new java.util.ArrayList<>();
 }

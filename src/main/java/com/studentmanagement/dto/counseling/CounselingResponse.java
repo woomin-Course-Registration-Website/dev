@@ -15,6 +15,7 @@ public class CounselingResponse {
     private final String content;
     private final String nextPlan;
     private final String shareScope;
+    private final java.util.List<Long> sharedTeacherIds;
     private final LocalDateTime createdAt;
 
     public CounselingResponse(Counseling c) {
@@ -25,6 +26,7 @@ public class CounselingResponse {
         this.content = c.getContent();
         this.nextPlan = c.getNextPlan();
         this.shareScope = c.getShareScope().name();
+        this.sharedTeacherIds = c.getSharedTeachers().stream().map(t -> t.getId()).toList();
         this.createdAt = c.getCreatedAt();
     }
 

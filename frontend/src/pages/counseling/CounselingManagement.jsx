@@ -4,10 +4,10 @@ import { getCounselings, createCounseling, updateCounseling, deleteCounseling } 
 import { getTeachers } from '../../api/users'
 
 // 백엔드 enum ↔ 한국어 변환
-const SCOPE_MAP     = { ALL: '전체공개', PRIVATE: '비공개' }
-const SCOPE_REVERSE = { '전체공개': 'ALL', '비공개': 'PRIVATE' }
+const SCOPE_MAP     = { ALL: '전체공개', SELECTED: '특정 교사', PRIVATE: '비공개' }
+const SCOPE_REVERSE = { '전체공개': 'ALL', '특정 교사': 'SELECTED', '비공개': 'PRIVATE' }
 
-const EMPTY_FORM = { studentId: '', date: '', content: '', nextPlan: '', scope: '전체공개' }
+const EMPTY_FORM = { studentId: '', date: '', content: '', nextPlan: '', scope: '전체공개', sharedTeacherIds: [] }
 
 export default function CounselingManagement() {
   const [students,   setStudents]   = useState([])
@@ -86,6 +86,7 @@ export default function CounselingManagement() {
       content:   c.content,
       nextPlan:  c.nextPlan || '',
       scope:     SCOPE_MAP[c.shareScope] || '전체공개',
+      sharedTeacherIds: c.sharedTeacherIds || [],
     })
     setModal(true)
   }
@@ -94,12 +95,14 @@ export default function CounselingManagement() {
     if (!form.studentId || !form.date || !form.content) return
     setSaving(true)
     try {
+      const scope = SCOPE_REVERSE[form.scope] || 'ALL'
       const body = {
         studentId:  Number(form.studentId),
         date:       form.date,
         content:    form.content,
         nextPlan:   form.nextPlan || null,
-        shareScope: SCOPE_REVERSE[form.scope] || 'ALL',
+        shareScope: scope,
+        sharedTeacherIds: scope === 'SELECTED' ? form.sharedTeacherIds.map(Number) : [],
       }
       if (editTarget) {
         await updateCounseling(editTarget.id, body)
@@ -294,8 +297,12 @@ export default function CounselingManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">공유 범위</label>
-                <div className="flex gap-4">
-                  {[{ v: '전체공개', l: '전체공개 (다른 교사 열람 가능)' }, { v: '비공개', l: '비공개 (본인만)' }].map(({ v, l }) => (
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { v: '전체공개', l: '전체공개 (모든 교사)' },
+                    { v: '특정 교사', l: '특정 교사 지정' },
+                    { v: '비공개', l: '비공개 (본인만)' },
+                  ].map(({ v, l }) => (
                     <label key={v} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
@@ -307,6 +314,31 @@ export default function CounselingManagement() {
                     </label>
                   ))}
                 </div>
+                {form.scope === '특정 교사' && (
+                  <div className="mt-3 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                    {teachers.length === 0 ? (
+                      <p className="text-xs text-gray-400 px-1 py-2">교사 목록을 불러오는 중...</p>
+                    ) : teachers.map((t) => {
+                      const checked = form.sharedTeacherIds.map(String).includes(String(t.id))
+                      return (
+                        <label key={t.id} className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-gray-50 rounded">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setForm((f) => ({
+                              ...f,
+                              sharedTeacherIds: e.target.checked
+                                ? [...f.sharedTeacherIds, t.id]
+                                : f.sharedTeacherIds.filter((id) => String(id) !== String(t.id)),
+                            }))}
+                            className="accent-primary-700"
+                          />
+                          <span className="text-sm text-gray-700">{t.name}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">

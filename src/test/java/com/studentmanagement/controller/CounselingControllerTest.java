@@ -45,7 +45,7 @@ class CounselingControllerTest {
     @Test
     void getAll_teacher_returns200() throws Exception {
         SecurityTestHelper.stubAsTeacher(jwtUtil);
-        given(counselingService.getAll(any(), any(), any(), any())).willReturn(List.of());
+        given(counselingService.getAll(any(), any(), any(), any(), any())).willReturn(List.of());
 
         mockMvc.perform(get("/api/counselings").header("Authorization", FAKE_TOKEN))
                 .andExpect(status().isOk());
