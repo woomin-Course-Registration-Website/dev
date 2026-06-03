@@ -54,12 +54,11 @@ export default function Login() {
     setResetMsg(null)
     try {
       await resetPassword(resetEmail)
-      setResetMsg({ ok: true, text: '임시 비밀번호가 이메일로 발송되었습니다.' })
-    } catch (err) {
-      const msg = err?.response?.data?.message || '해당 이메일로 등록된 계정이 없습니다.'
-      setResetMsg({ ok: false, text: msg })
+    } catch {
+      // 계정 존재 여부를 노출하지 않기 위해 성공/실패 동일 메시지 처리
     } finally {
       setResetLoading(false)
+      setResetMsg({ ok: true, text: '해당 이메일로 가입된 계정이 있다면 임시 비밀번호를 발송했습니다.' })
     }
   }
 
