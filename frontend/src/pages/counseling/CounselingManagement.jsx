@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getStudents } from '../../api/students'
 import { getCounselings, createCounseling, updateCounseling, deleteCounseling } from '../../api/counselings'
+import { getTeachers } from '../../api/users'
 
 // 백엔드 enum ↔ 한국어 변환
 const SCOPE_MAP     = { ALL: '전체공개', PRIVATE: '비공개' }
@@ -20,28 +21,41 @@ export default function CounselingManagement() {
   const [form,       setForm]       = useState(EMPTY_FORM)
   const [saving,     setSaving]     = useState(false)
   const [deleteId,   setDeleteId]   = useState(null)
+  const [teachers,      setTeachers]      = useState([])
+  const [teacherFilter, setTeacherFilter] = useState('')
+  const [fromDate,      setFromDate]      = useState('')
+  const [toDate,        setToDate]        = useState('')
 
   // 학생 목록 로드
   useEffect(() => {
     getStudents().then((data) => setStudents(data || [])).catch(() => {})
   }, [])
 
-  // 상담 목록 로드
+  // 교사 목록 로드 (필터용)
+  useEffect(() => {
+    getTeachers().then((data) => setTeachers(data || [])).catch(() => setTeachers([]))
+  }, [])
+
+  // 상담 목록 로드 (교사/기간 필터는 서버에 전달)
   const loadCounselings = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getCounselings()
+      const params = {}
+      if (teacherFilter) params.teacherId = teacherFilter
+      if (fromDate)      params.from = fromDate
+      if (toDate)        params.to = toDate
+      const data = await getCounselings(params)
       setList(data || [])
     } catch {
       setList([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [teacherFilter, fromDate, toDate])
 
   useEffect(() => { loadCounselings() }, [loadCounselings])
 
-  // 필터링 & 정렬
+  // 학생 이름 검색은 클라이언트에서 추가 필터
   const filtered = list
     .filter((c) => {
       const name = c.studentName || ''
@@ -139,6 +153,13 @@ export default function CounselingManagement() {
           </svg>
           <input placeholder="학생 이름 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="input pl-9 h-9 py-1.5" />
         </div>
+        <select value={teacherFilter} onChange={(e) => setTeacherFilter(e.target.value)} className="input w-32 h-9 py-1.5">
+          <option value="">전체 교사</option>
+          {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input w-36 h-9 py-1.5" title="시작일" />
+        <span className="text-gray-300">~</span>
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input w-36 h-9 py-1.5" title="종료일" />
         <span className="text-sm text-gray-400">총 {filtered.length}건</span>
       </div>
 
