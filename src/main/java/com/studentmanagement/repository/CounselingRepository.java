@@ -10,7 +10,8 @@ import java.util.List;
 
 public interface CounselingRepository extends JpaRepository<Counseling, Long> {
 
-    @Query("SELECT c FROM Counseling c JOIN FETCH c.student JOIN FETCH c.teacher WHERE " +
+    @Query("SELECT DISTINCT c FROM Counseling c JOIN FETCH c.student JOIN FETCH c.teacher " +
+           "LEFT JOIN FETCH c.sharedTeachers WHERE " +
            "(:studentId IS NULL OR c.student.id = :studentId) AND " +
            "(:teacherId IS NULL OR c.teacher.id = :teacherId) AND " +
            "(:from IS NULL OR c.date >= :from) AND " +
@@ -21,7 +22,8 @@ public interface CounselingRepository extends JpaRepository<Counseling, Long> {
                                    @Param("from") LocalDate from,
                                    @Param("to") LocalDate to);
 
-    @Query("SELECT c FROM Counseling c JOIN FETCH c.student JOIN FETCH c.teacher " +
+    @Query("SELECT DISTINCT c FROM Counseling c JOIN FETCH c.student JOIN FETCH c.teacher " +
+           "LEFT JOIN FETCH c.sharedTeachers " +
            "WHERE c.student.id = :studentId AND c.shareScope = 'ALL' ORDER BY c.date DESC")
     List<Counseling> findPublicByStudentId(@Param("studentId") Long studentId);
 }
