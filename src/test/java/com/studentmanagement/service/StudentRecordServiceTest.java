@@ -8,6 +8,7 @@ import com.studentmanagement.dto.record.StudentRecordRequest;
 import com.studentmanagement.dto.record.StudentRecordResponse;
 import com.studentmanagement.exception.ResourceNotFoundException;
 import com.studentmanagement.fixture.TestFixtures;
+import com.studentmanagement.repository.StudentRecordNoteRepository;
 import com.studentmanagement.repository.StudentRecordRepository;
 import com.studentmanagement.repository.StudentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,7 @@ import static org.mockito.BDDMockito.*;
 class StudentRecordServiceTest {
 
     @Mock StudentRecordRepository recordRepository;
+    @Mock StudentRecordNoteRepository noteRepository;
     @Mock StudentRepository studentRepository;
     @Mock StudentAccessService studentAccessService;
     @Spy  ObjectMapper objectMapper;

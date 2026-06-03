@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { getStudent, addParent, removeParent } from '../../api/students'
 import { getGrades } from '../../api/grades'
-import { getRecord, updateRecord } from '../../api/records'
+import { getRecord, updateRecord, listRecordNotes, addRecordNote, updateRecordNote, deleteRecordNote } from '../../api/records'
 import { getFeedbacks, createFeedback, deleteFeedback } from '../../api/feedbacks'
 import { getCounselings, createCounseling, deleteCounseling, getPublicCounselings } from '../../api/counselings'
 import useAuthStore from '../../store/authStore'
@@ -50,7 +50,13 @@ export default function StudentDetail() {
 
   // 학생부 수정
   const [editingNote, setEditingNote] = useState(false)
-  const [noteForm, setNoteForm]       = useState({ present: '', absent: '', late: '', specialNotes: '' })
+  const [noteForm, setNoteForm]       = useState({ present: '', absent: '', late: '' })
+
+  // 특기사항 다항목
+  const [notes, setNotes]               = useState([])
+  const [noteInput, setNoteInput]       = useState('')
+  const [editNoteId, setEditNoteId]     = useState(null)
+  const [editNoteText, setEditNoteText] = useState('')
 
   // 피드백 추가 폼
   const [fbForm, setFbForm]   = useState({ category: 'GRADE', content: '', isPublic: true })
@@ -86,8 +92,9 @@ export default function StudentDetail() {
       getRecord(id).then((r) => {
         setRecord(r)
         const att = r.attendance ? JSON.parse(r.attendance) : {}
-        setNoteForm({ present: att.present ?? '', absent: att.absent ?? '', late: att.late ?? '', specialNotes: r.specialNotes ?? '' })
+        setNoteForm({ present: att.present ?? '', absent: att.absent ?? '', late: att.late ?? '' })
       }).catch(() => setRecord(null))
+      listRecordNotes(id).then(setNotes).catch(() => setNotes([]))
     } else if (tab === '피드백') {
       getFeedbacks(id).then(setFeedbacks).catch(() => setFeedbacks([]))
     } else if (tab === '상담') {
@@ -100,9 +107,33 @@ export default function StudentDetail() {
     try {
       await updateRecord(id, {
         attendance: { present: Number(noteForm.present), absent: Number(noteForm.absent), late: Number(noteForm.late) },
-        specialNotes: noteForm.specialNotes,
       })
       setEditingNote(false)
+    } catch { /* 에러 무시 */ }
+  }
+
+  const handleAddNote = async () => {
+    if (!noteInput.trim()) return
+    try {
+      const created = await addRecordNote(id, noteInput.trim())
+      setNotes((prev) => [...prev, created])
+      setNoteInput('')
+    } catch { /* 에러 무시 */ }
+  }
+
+  const handleUpdateNote = async (noteId) => {
+    if (!editNoteText.trim()) return
+    try {
+      const updated = await updateRecordNote(noteId, editNoteText.trim())
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? updated : n)))
+      setEditNoteId(null); setEditNoteText('')
+    } catch { /* 에러 무시 */ }
+  }
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await deleteRecordNote(noteId)
+      setNotes((prev) => prev.filter((n) => n.id !== noteId))
     } catch { /* 에러 무시 */ }
   }
 
@@ -303,9 +334,6 @@ export default function StudentDetail() {
                       </div>
                     ))}
                   </div>
-                  <textarea rows={3} placeholder="특기사항" value={noteForm.specialNotes}
-                    onChange={(e) => setNoteForm((f) => ({ ...f, specialNotes: e.target.value }))}
-                    className="input resize-none" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setEditingNote(false)} className="btn-sm btn-secondary">취소</button>
                     <button onClick={handleSaveRecord} className="btn-sm btn-primary">저장</button>
@@ -328,10 +356,9 @@ export default function StudentDetail() {
                       )
                     })}
                   </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">{record.specialNotes || '특기사항 없음'}</p>
                   {isTeacher && (
                     <div className="flex justify-end mt-3">
-                      <button onClick={() => setEditingNote(true)} className="btn-sm btn-secondary">수정</button>
+                      <button onClick={() => setEditingNote(true)} className="btn-sm btn-secondary">출결 수정</button>
                     </div>
                   )}
                 </>
@@ -344,6 +371,50 @@ export default function StudentDetail() {
               ) : '학생부가 없습니다.'}
             </div>
           )}
+
+          {/* 특기사항 다항목 */}
+          <div className="card p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">특기사항</h3>
+            {notes.length === 0 ? (
+              <p className="text-sm text-gray-400">등록된 특기사항이 없습니다.</p>
+            ) : (
+              <ul className="space-y-2">
+                {notes.map((n) => (
+                  <li key={n.id} className="flex items-start gap-2 p-3 rounded-lg border border-gray-100">
+                    {editNoteId === n.id ? (
+                      <>
+                        <input value={editNoteText} onChange={(e) => setEditNoteText(e.target.value)} className="input h-9 flex-1" />
+                        <button onClick={() => handleUpdateNote(n.id)} className="btn-sm btn-primary">저장</button>
+                        <button onClick={() => { setEditNoteId(null); setEditNoteText('') }} className="btn-sm btn-secondary">취소</button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.content}</p>
+                        {isTeacher && (
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button onClick={() => { setEditNoteId(n.id); setEditNoteText(n.content) }} className="btn-sm btn-ghost px-2 text-xs">수정</button>
+                            <button onClick={() => handleDeleteNote(n.id)} className="btn-sm text-red-500 hover:bg-red-50 rounded-md px-2 text-xs font-medium">삭제</button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {isTeacher && (
+              <div className="flex gap-2 mt-4">
+                <input
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddNote() }}
+                  placeholder="특기사항 추가 (예: 교내 수학경시 대상)"
+                  className="input h-9 flex-1"
+                />
+                <button onClick={handleAddNote} className="btn-sm btn-primary">추가</button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
