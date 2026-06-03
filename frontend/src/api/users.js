@@ -27,3 +27,11 @@ export const deleteUser = (id) =>
 /** 교사 목록 옵션 (TEACHER/ADMIN) → [{ id, name }] */
 export const getTeachers = () =>
   client.get('/users/teachers').then((r) => r.data.data)
+
+/** 내 알림 수신 설정 조회 → { notifyGrade, notifyFeedback, notifyCounseling } */
+export const getNotificationSettings = () =>
+  client.get('/users/me/notification-settings').then((r) => r.data.data)
+
+/** 내 알림 수신 설정 변경 */
+export const updateNotificationSettings = (body) =>
+  client.put('/users/me/notification-settings', body).then((r) => r.data.data)

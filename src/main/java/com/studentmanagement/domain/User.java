@@ -43,6 +43,16 @@ public class User {
     @Column(nullable = false, length = 10)
     private Role role;
 
+    /** 알림 수신 설정 — 성적/피드백/상담 알림 각각 on/off (기본 수신) */
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean notifyGrade = true;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean notifyFeedback = true;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean notifyCounseling = true;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

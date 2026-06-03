@@ -86,6 +86,16 @@ public class NotificationService {
     @Transactional
     public void send(User recipient, Notification.Type type, String message) {
         if (recipient == null) return;
+        if (!isEnabled(recipient, type)) return;
         notificationRepository.save(new Notification(recipient, type, message));
+    }
+
+    /** 수신자의 알림 타입별 수신 설정 확인 */
+    private boolean isEnabled(User user, Notification.Type type) {
+        return switch (type) {
+            case GRADE -> user.isNotifyGrade();
+            case FEEDBACK -> user.isNotifyFeedback();
+            case COUNSELING -> user.isNotifyCounseling();
+        };
     }
 }

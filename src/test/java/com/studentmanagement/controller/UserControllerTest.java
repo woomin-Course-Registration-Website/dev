@@ -222,4 +222,31 @@ class UserControllerTest {
         mockMvc.perform(get("/api/users/teachers").header("Authorization", FAKE_TOKEN))
                 .andExpect(status().isForbidden());
     }
+
+    // ── notification settings ─────────────────────────────────────────
+
+    @Test
+    void getNotificationSettings_anyRole_returns200() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+        given(userService.getNotificationSettings(anyString()))
+                .willReturn(new com.studentmanagement.dto.user.NotificationSettingsResponse(TestFixtures.teacherUser()));
+
+        mockMvc.perform(get("/api/users/me/notification-settings").header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void updateNotificationSettings_anyRole_returns200() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+        given(userService.updateNotificationSettings(anyString(), any()))
+                .willReturn(new com.studentmanagement.dto.user.NotificationSettingsResponse(TestFixtures.teacherUser()));
+
+        mockMvc.perform(put("/api/users/me/notification-settings")
+                .header("Authorization", FAKE_TOKEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"notifyGrade":true,"notifyFeedback":false,"notifyCounseling":true}
+                    """))
+                .andExpect(status().isOk());
+    }
 }
