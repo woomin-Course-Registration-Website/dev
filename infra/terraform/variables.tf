@@ -77,3 +77,9 @@ variable "argocd_chart_version" {
   type        = string
   default     = "7.7.7"
 }
+
+variable "sealed_secrets_chart_version" {
+  description = "sealed-secrets helm 차트 버전"
+  type        = string
+  default     = "2.16.1"
+}

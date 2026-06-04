@@ -238,6 +238,19 @@ resource "helm_release" "kube_prometheus_stack" {
   depends_on = [module.eks]
 }
 
+# ── Sealed Secrets ─────────────────────────────────────────────────────────
+
+resource "helm_release" "sealed_secrets" {
+  name             = "sealed-secrets"
+  repository       = "https://bitnami-labs.github.io/sealed-secrets"
+  chart            = "sealed-secrets"
+  namespace        = "sealed-secrets"
+  create_namespace = true
+  version          = var.sealed_secrets_chart_version
+
+  depends_on = [module.eks]
+}
+
 # ── Argo CD (GitOps) ─────────────────────────────────────────────────────────
 
 resource "helm_release" "argocd" {
