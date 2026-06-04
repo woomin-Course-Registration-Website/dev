@@ -145,11 +145,11 @@ SecurityTestHelper.stubAsInvalid(jwtUtil);
 
 - **CI** (`.github/workflows/ci.yml`): `main`/`develop` 브랜치 push/PR 시 실행. 실제 MySQL 컨테이너로 `SPRING_PROFILES_ACTIVE: dev`에서 테스트 → JAR 빌드.
 - **백엔드 CD** (`.github/workflows/cd.yml`): `main` push 시(`k8s/**`·`docs/**`·`frontend/**` 제외) OIDC로 AWS 인증 → **ECR**에 backend 이미지 빌드/푸시(불변 태그 `github.sha`) → `kustomize edit set image`로 `k8s/overlays/dev`의 이미지 태그를 갱신·커밋(write-back). **CI에 클러스터 자격증명 없음.**
-- **프론트엔드 CD**: **Amplify Console**이 GitHub webhook으로 자동 빌드/배포(`amplify.yml`). branch=`develop`→`dev.<domain>`, `staging`→`staging.<domain>`, `main`→`<domain>`(루트). GitHub Actions 워크플로우 불필요.
+- **프론트엔드 CD**: **Amplify Console**이 GitHub webhook으로 자동 빌드/배포(`amplify.yml`). 브랜치별 Amplify 기본 도메인(`https://<branch>.<app-id>.amplifyapp.com`) 사용 — 커스텀 도메인 없음. URL 확인: `terraform output amplify_branch_urls`. GitHub Actions 워크플로우 불필요.
 - **GitOps 배포**: **Argo CD**(EKS `argocd` 네임스페이스)가 git을 watch하여 `k8s/overlays/{env}`를 각 `student-mgmt-{env}` 네임스페이스에 동기화. dev는 자동, staging/prod는 `promote.yml`(`workflow_dispatch`) PR 머지로 승격. Argo CD·ApplicationSet·AppProject는 Terraform `helm_release`(`infra/terraform/eks.tf` + `k8s/bootstrap/` 로컬 차트)로 부트스트랩.
 - **시크릿**: 운영자가 `kubeseal`로 암호화한 `SealedSecret`을 `k8s/overlays/{env}/sealed-secrets/`에 커밋 → Argo가 sync → 클러스터 내 sealed-secrets controller가 복호화하여 Secret 생성 → Pod `envFrom`.
-- **진입 토폴로지**: 브라우저 → Amplify(SPA, public) / 브라우저 → API Gateway HTTP API(public, 환경별 3개) → VPC Link → private ALB → EKS backend.
-- **인프라**: **Terraform**(`infra/terraform/`)으로 VPC·EKS·RDS·ECR·ACM·Route53·Amplify·API Gateway·Sealed Secrets controller를 관리. **Kustomize**(`k8s/base` + `k8s/overlays/{dev,staging,prod}`)로 Deployment·Service·HPA·PDB·Ingress·NetworkPolicy·SealedSecret·ServiceMonitor 구성.
+- **진입 토폴로지**: 브라우저 → Amplify(SPA, public, `*.amplifyapp.com`) / 브라우저 → API Gateway HTTP API(public, 환경별 3개, `*.execute-api.amazonaws.com`) → VPC Link → private ALB → EKS backend. 커스텀 도메인/ACM/Route53 zone 사용 안 함.
+- **인프라**: **Terraform**(`infra/terraform/`)으로 VPC·EKS·RDS·ECR·Amplify·API Gateway·Sealed Secrets controller를 관리. **Kustomize**(`k8s/base` + `k8s/overlays/{dev,staging,prod}`)로 Deployment·Service·HPA·PDB·Ingress·NetworkPolicy·SealedSecret·ServiceMonitor 구성.
 
 ## 상세 문서
 

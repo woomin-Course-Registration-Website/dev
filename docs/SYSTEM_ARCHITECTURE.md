@@ -9,7 +9,8 @@
                                     │
                 ┌───────────────────┴─────────────────────┐
                 │ SPA 자산 요청                            │ REST API 호출
-                │ https://<host>                           │ https://api[-env].<domain>
+                │ https://<branch>.<app-id>                │ https://<api-id>.execute-api.…
+                │   .amplifyapp.com                        │   .amazonaws.com/api/…
                 ▼                                          ▼
         ┌────────────────────┐                  ┌──────────────────────────┐
         │   AWS Amplify       │                  │  API Gateway HTTP API     │
@@ -18,7 +19,7 @@
         │  매핑                │                  │  • throttling            │
         │  develop→dev.       │                  │  • CORS                  │
         │  staging→staging.   │                  │  • 단순 진입점 (인증 X)   │
-        │  main→<domain>      │                  └────────┬─────────────────┘
+        │ main→main.<app-id>  │                  └────────┬─────────────────┘
         └────────────────────┘                            │ VPC Link
                                                           │ (private subnet ENI)
                                                           ▼
@@ -73,13 +74,15 @@
 
 ## 2. 환경 분리 매트릭스
 
-| 환경 | EKS 네임스페이스 | SPA 호스트 | API 호스트 | ALB group.name | RDS 스키마 | Argo Application | sync 정책 |
-|------|------------------|------------|------------|----------------|------------|-------------------|----------|
-| dev | `student-mgmt-dev` | `dev.<domain>` | `api-dev.<domain>` | `student-mgmt-dev` | `student_mgmt_dev` | `student-mgmt-dev` | auto |
-| staging | `student-mgmt-staging` | `staging.<domain>` | `api-staging.<domain>` | `student-mgmt-staging` | `student_mgmt_staging` | `student-mgmt-staging` | auto (PR gate) |
-| prod | `student-mgmt-prod` | `<domain>` (루트) | `api.<domain>` | `student-mgmt-prod` | `student_mgmt_prod` | `student-mgmt-prod` | auto (PR gate) |
+| 환경 | EKS 네임스페이스 | Amplify 브랜치 → SPA URL | API URL | ALB group.name | RDS 스키마 | Argo Application |
+|------|------------------|--------------------------|---------|----------------|------------|-------------------|
+| dev | `student-mgmt-dev` | `develop` → `https://develop.<app-id>.amplifyapp.com` | `https://<api-id>.execute-api.ap-northeast-2.amazonaws.com/api` | `student-mgmt-dev` | `student_mgmt_dev` | `student-mgmt-dev` (auto) |
+| staging | `student-mgmt-staging` | `staging` → `https://staging.<app-id>.amplifyapp.com` | `https://<api-id>.execute-api…` | `student-mgmt-staging` | `student_mgmt_staging` | `student-mgmt-staging` (auto, PR gate) |
+| prod | `student-mgmt-prod` | `main` → `https://main.<app-id>.amplifyapp.com` | `https://<api-id>.execute-api…` | `student-mgmt-prod` | `student_mgmt_prod` | `student-mgmt-prod` (auto, PR gate) |
 
-**공유 자원:** EKS 클러스터·노드 그룹·RDS 인스턴스·ACM 와일드카드 인증서·Amplify 앱(단일, 브랜치만 분기)·애드온.
+> 실제 URL 확인: `terraform output amplify_branch_urls` / `terraform output apigateway_endpoints`. 커스텀 도메인 없이 AWS 기본 URL 사용.
+
+**공유 자원:** EKS 클러스터·노드 그룹·RDS 인스턴스·Amplify 앱(단일, 브랜치만 분기)·애드온.
 **분리 자원:** 네임스페이스·ALB·API Gateway HTTP API·Route53 레코드·RDS 논리 DB·Argo Application·Amplify 브랜치.
 
 ## 3. 컴포넌트별 책임
@@ -88,15 +91,15 @@
 - Amplify가 GitHub repo의 `frontend/` 디렉토리를 watch.
 - 브랜치 webhook으로 자동 빌드 → 자동 배포.
 - `amplify.yml`(repo 루트)에서 `npm install && npm run build` → `dist/` 산출물 CDN 호스팅.
-- 환경변수 `VITE_API_URL`이 브랜치별로 다르게 주입(dev → `api-dev.<domain>`, prod → `api.<domain>`).
+- 환경변수 `VITE_API_BASE_URL`이 브랜치별로 다르게 주입 — 값은 해당 환경 API Gateway의 기본 invoke URL + `/api` (Terraform이 `aws_apigatewayv2_api.env[env].api_endpoint`를 통해 자동 설정).
 - TLS·인증서·CDN 모두 Amplify가 관리. EKS 부담 없음.
 
 ### 3.2 API 진입점 — API Gateway HTTP API
-- **환경마다 별도 API 3개**. 각자 자신의 커스텀 도메인(`api[-env].<domain>`), 자신의 VPC Link.
+- **환경마다 별도 API 3개**. 각자 AWS 기본 invoke URL(`https://<api-id>.execute-api.ap-northeast-2.amazonaws.com`), 자신의 VPC Link.
 - HTTP API는 REST API보다 저비용·단순. JWT authorizer를 쓰지 않으므로 HTTP API로 충분.
 - 모든 경로(`ANY /{proxy+}`)를 VPC Link 통해 환경 ALB로 패스스루.
-- CORS: `allow_origins`에 해당 환경 Amplify 호스트만 허용(`https://dev.<domain>` 등).
-- 인증서: ap-northeast-2 ACM 와일드카드 1장 공유(`*.<domain>` + `<domain>`).
+- CORS: `allow_origins`에 해당 환경 Amplify 기본 URL만 허용(`https://<branch>.<app-id>.amplifyapp.com`).
+- 인증서: AWS 기본 도메인은 AWS가 관리(별도 ACM 인증서 불필요).
 
 ### 3.3 내부 라우팅 — private ALB
 - 환경별로 `aws-load-balancer-controller`가 `Ingress`를 보고 ALB를 자동 생성.
@@ -147,7 +150,7 @@
 
 ### 4.2 REST API 호출
 ```
-브라우저 → https://api-<env>.<domain> (CORS preflight + 실제 요청)
+브라우저 → https://<api-id>.execute-api.ap-northeast-2.amazonaws.com/api/... (CORS preflight + 실제 요청)
          ↓ TLS 종료, throttling, CORS
        API Gateway HTTP API
          ↓ VPC Link (private subnet ENI)
@@ -168,9 +171,9 @@
 │ 개발자가 frontend/* 변경 → git push (develop 등)  │
 │   ↓ GitHub webhook                              │
 │ Amplify Console: 자동 빌드 → 자동 배포           │
-│ branch=develop → dev.<domain>                   │
-│ branch=staging → staging.<domain>               │
-│ branch=main    → <domain>(루트)                 │
+│ branch=develop → develop.<app-id>.amplifyapp.com│
+│ branch=staging → staging.<app-id>.amplifyapp.com│
+│ branch=main    → main.<app-id>.amplifyapp.com   │
 │ GitHub Actions 워크플로우 불필요.                 │
 └─────────────────────────────────────────────────┘
 

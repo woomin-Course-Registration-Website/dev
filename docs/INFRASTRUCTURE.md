@@ -7,15 +7,14 @@
 ```
 infra/terraform/
 ├── main.tf         # provider 설정, S3+DynamoDB backend, 공통 데이터 소스
-├── variables.tf    # 입력 변수 (project, aws_region, domain_name, github_org/repo, db_*, jwt_secret, amplify_github_token, sealed_secrets_chart_version, argocd_chart_version …)
-├── outputs.tf      # 외부 노출값 (ECR URL, ACM ARN, github_actions_role_arn, amplify_app_id, apigateway_endpoints …)
+├── variables.tf    # 입력 변수 (project, aws_region, github_org/repo, db_*, jwt_secret, amplify_github_token, sealed_secrets_chart_version, argocd_chart_version …)
+├── outputs.tf      # 외부 노출값 (ECR URL, github_actions_role_arn, amplify_app_id, amplify_branch_urls, apigateway_endpoints, …)
 ├── vpc.tf          # VPC, public/private/db 서브넷, NAT, RDS SG
 ├── eks.tf          # EKS 모듈, 노드 그룹, IRSA, 모든 애드온 + Argo + Sealed Secrets helm_releases
 ├── rds.tf          # RDS MySQL 8 Multi-AZ
 ├── ecr.tf          # backend ECR repo + lifecycle policy
-├── acm.tf          # ALB·API Gateway·Amplify 공유 와일드카드 ACM (ap-northeast-2 한 장)
-├── amplify.tf      # Amplify 앱 + 브랜치 × 3 + 도메인 연결
-├── apigateway.tf   # HTTP API × 3 + VPC Link × 3 + 통합 + 커스텀 도메인 + Route53 alias + ALB SG 룰
+├── amplify.tf      # Amplify 앱 + 브랜치 × 3 (커스텀 도메인 없음, 기본 amplifyapp.com 사용)
+├── apigateway.tf   # HTTP API × 3 + VPC Link × 3 + 통합 + ALB SG 룰 (기본 execute-api URL 사용)
 └── iam.tf          # GitHub Actions OIDC provider + 역할(ECR 전용)
 ```
 
@@ -60,18 +59,15 @@ infra/terraform/
 - `scan_on_push: true`.
 - 라이프사이클: untagged 1일 후 만료, 전체 최신 15개 유지.
 
-### 2.5 Edge — ACM + Route53 + Amplify + API Gateway
-- **ACM**(ap-northeast-2): `<domain>` + `*.<domain>` 와일드카드 1장. ALB·API Gateway·Amplify가 모두 공유.
-- **Route53**: 단일 호스팅 존(`<domain>`). 레코드:
-  - 루트 `<domain>` (Amplify prod 브랜치, A alias) — Amplify가 자동 관리.
-  - `dev.<domain>`, `staging.<domain>` (Amplify dev/staging 브랜치) — Amplify가 자동 관리.
-  - `api.<domain>`, `api-dev.<domain>`, `api-staging.<domain>` (API Gateway 커스텀 도메인, A alias) — Terraform이 생성.
-- **Amplify**: 단일 앱(`aws_amplify_app.main`), 3개 브랜치(`develop` / `staging` / `main`), `aws_amplify_domain_association`이 prefix 매핑.
+### 2.5 Edge — Amplify + API Gateway (AWS 기본 도메인)
+**커스텀 도메인 없음.** ACM 인증서·Route53 호스팅 존 미사용. AWS가 자동 발급/관리하는 기본 도메인 사용:
+- **Amplify**: 단일 앱(`aws_amplify_app.main`), 3개 브랜치(`develop` / `staging` / `main`). 브랜치별 SPA URL = `https://<branch>.<app-id>.amplifyapp.com`. TLS·CDN·인증서 Amplify가 자동 관리. URL 확인: `terraform output amplify_branch_urls`.
 - **API Gateway HTTP API × 3** + VPC Link × 3:
-  - 환경마다 별도 API + VPC Link + 통합 + 도메인 + 매핑 + Route53.
+  - 환경마다 별도 API + VPC Link + 통합. **커스텀 도메인 매핑 없음** — 기본 invoke URL(`https://<api-id>.execute-api.ap-northeast-2.amazonaws.com`)을 그대로 사용.
   - 통합 대상: `data "aws_lb_listener" "env_http"`로 환경의 private ALB(80) listener arn을 조회 → HTTP_PROXY + VPC_LINK.
   - 모든 경로 `ANY /{proxy+}`로 패스스루.
-  - CORS allow_origins: 해당 환경 Amplify 호스트 1개만 허용.
+  - CORS allow_origins: 해당 환경 Amplify 기본 URL 1개만 허용.
+  - URL 확인: `terraform output apigateway_endpoints`.
 
 ### 2.6 시크릿 — Sealed Secrets
 - `helm_release "sealed_secrets"` (Bitnami chart `sealed-secrets`, namespace `sealed-secrets`).
@@ -93,13 +89,12 @@ infra/terraform/
 | `aws_lbc` | aws-load-balancer-controller | kube-system | Ingress → 환경별 private ALB 자동 생성 | `student-mgmt-aws-lbc` |
 | `cluster_autoscaler` | autoscaler/cluster-autoscaler | kube-system | 노드 그룹 자동 확장 | `student-mgmt-cluster-autoscaler` |
 | `metrics_server` | metrics-server | kube-system | HPA 메트릭 소스 | (없음) |
-| `external_dns` | external-dns | kube-system | (현재는 사용 영역 축소 — API Gateway는 Terraform에서 직접 Route53 관리) | `student-mgmt-external-dns` |
 | `kube_prometheus_stack` | prometheus-community/kube-prometheus-stack | monitoring | Prometheus + Grafana + Alertmanager + CRDs | (없음) |
 | `sealed_secrets` | bitnami-labs/sealed-secrets | sealed-secrets | SealedSecret 복호화 컨트롤러 | (없음) |
 | `argocd` | argo/argo-cd | argocd | GitOps 컨트롤러 + UI | (없음) |
 | `argocd_bootstrap` | `${path.module}/../../k8s/bootstrap` (로컬 차트) | argocd | AppProject + ApplicationSet | (없음) |
 
-**제거된 helm_release**(이전 설계 잔재): `external_secrets`(ESO), `aws_for_fluent_bit`. 이전 IAM policy `eso_secrets_manager`와 IRSA `eso_irsa`, `fluentbit_irsa`도 삭제.
+**제거된 helm_release**(이전 설계 잔재): `external_secrets`(ESO), `aws_for_fluent_bit`, `external_dns`(커스텀 도메인 미사용). 관련 IAM policy `eso_secrets_manager`와 IRSA `eso_irsa`, `fluentbit_irsa`, `external_dns_irsa`도 삭제.
 
 **`argocd_bootstrap` 로컬 차트**(`k8s/bootstrap/`):
 - AppProject `student-mgmt` (소스 레포 + 3개 대상 네임스페이스로 제한).
@@ -123,11 +118,10 @@ infra/terraform/
 | `student-mgmt-ebs-csi` | `kube-system:ebs-csi-controller-sa` | EBS CSI |
 | `student-mgmt-aws-lbc` | `kube-system:aws-load-balancer-controller` | ALB 생성·관리 |
 | `student-mgmt-cluster-autoscaler` | `kube-system:cluster-autoscaler` | ASG describe/modify (이 클러스터 한정) |
-| `student-mgmt-external-dns` | `kube-system:external-dns` | Route53 (호스팅 존 ARN 한정) |
 
 모든 IRSA는 EKS OIDC provider를 trust하며 namespace+SA 조합으로 분리.
 
-**제거된 IRSA**: `eso_irsa`(ESO 미사용), `fluentbit_irsa`(Fluent Bit 미사용).
+**제거된 IRSA**: `eso_irsa`(ESO 미사용), `fluentbit_irsa`(Fluent Bit 미사용), `external_dns_irsa`(external-dns 미사용).
 
 ### 4.3 EKS access entry
 - `enable_cluster_creator_admin_permissions = true` — Terraform 실행 주체 admin.
@@ -165,11 +159,9 @@ kubectl get secret -n sealed-secrets -l sealedsecrets.bitnami.com/sealed-secrets
 | ALB | aws-lbc가 환경별 1개 생성 | — | `group.name: student-mgmt-{env}` |
 | API Gateway HTTP API | 환경별 1개 | — | `aws_apigatewayv2_api.env[env]` |
 | VPC Link | 환경별 1개 | — | 환경별 보안그룹 |
-| API 커스텀 도메인 | `api[-env].<domain>` | — | ACM 와일드카드 공유 |
+| API URL | 환경별 AWS 기본 invoke URL | — | `<api-id>.execute-api.<region>.amazonaws.com` |
 | Amplify 브랜치 | develop/staging/main | — | 단일 앱, 브랜치만 분기 |
-| SPA 도메인 | `{dev/staging/}<domain>` | — | Amplify domain_association |
-| ACM 인증서 | — | 와일드카드 1장 | ap-northeast-2 |
-| Route53 호스팅 존 | — | 1개 | `<domain>` |
+| SPA URL | 환경별 Amplify 기본 URL | — | `<branch>.<app-id>.amplifyapp.com` |
 | RDS 인스턴스 | — | 공유 | 비용 절감 |
 | RDS 논리 DB | `student_mgmt_{env}` | — | 1회 SQL로 생성 |
 | ECR | — | 공유 | `student-mgmt/backend` 한 repo, 태그로 분리 |
@@ -198,7 +190,6 @@ terraform apply -target=module.eks
 terraform apply -target=helm_release.aws_lbc \
                 -target=helm_release.cluster_autoscaler \
                 -target=helm_release.metrics_server \
-                -target=helm_release.external_dns \
                 -target=helm_release.kube_prometheus_stack \
                 -target=helm_release.sealed_secrets \
                 -target=helm_release.argocd \
@@ -219,7 +210,7 @@ terraform apply
 ## 8. 변경·확장 체크리스트
 
 - **새 환경 추가**: `k8s/overlays/<env>/` overlay 3종 + `sealed-secrets/`, `k8s/bootstrap/values.yaml`의 `environments`에 추가, `infra/terraform/apigateway.tf`의 `local.apigw_envs`에 추가, `infra/terraform/amplify.tf`의 `local.amplify_branches`에 추가, 신규 Amplify 브랜치 생성, 시크릿 값 주입.
-- **새 도메인**: `acm.tf`(ap-northeast-2) + Route53 호스팅 존 변경, Amplify domain_association·API Gateway custom_domain_name 갱신.
+- **커스텀 도메인 추가(추후)**: `acm.tf`로 ACM 인증서 재추가 + Route53 호스팅 존 데이터 소스 + `aws_amplify_domain_association` + `aws_apigatewayv2_domain_name` + Route53 alias 레코드 추가. 현재는 미사용으로 인프라 단순화.
 - **새 helm 애드온**: `eks.tf` 끝에 `helm_release` 추가, 필요 시 IRSA 모듈 추가, `depends_on`으로 부트스트랩 순서 명시.
 - **노드 인스턴스 타입 변경**: `var.eks_node_instance_type` 수정 → 노드 그룹 롤링 교체(PDB·HPA가 무중단 보장).
 

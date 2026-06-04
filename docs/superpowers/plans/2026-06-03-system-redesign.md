@@ -1265,10 +1265,13 @@ git commit -m "[docs] CLAUDE.md/AGENTS.md CI/CD 섹션을 Amplify + API Gateway 
 
 > 이 Task는 코드 변경 0건. 운영자가 실제 AWS에 적용하는 절차. 본 계획의 검증은 정적 검증까지(`Task 18`). end-to-end 확인은 이 절차로.
 
+> **후속 변경 반영**: 커스텀 도메인 미사용. AWS 기본 도메인(Amplify amplifyapp.com / API Gateway execute-api.amazonaws.com)만 사용. 따라서 Route53 zone·ACM 인증서·external-dns 관련 절차는 모두 생략.
+
 **전제조건**:
-- `terraform.tfvars`에 `domain_name`, `db_password`, `jwt_secret`, `github_org`, `github_repo`, `amplify_github_token` 채움.
-- Route53 호스팅 존이 `<domain>`에 존재. Terraform 상태 S3 버킷 + DynamoDB lock 테이블 사전 생성.
+- `terraform.tfvars`에 `db_password`, `jwt_secret`, `github_org`, `github_repo`, `amplify_github_token` 채움. (`domain_name`은 제거됨)
+- Terraform 상태 S3 버킷 + DynamoDB lock 테이블 사전 생성. **Route53 호스팅 존 불필요**.
 - GitHub repo 설정: Actions 탭에서 "Allow GitHub Actions to create and approve pull requests" 활성. `main` 보호 규칙이 있다면 `github-actions[bot]` 허용 또는 보호 해제.
+- GitHub 저장소에 `develop`, `staging`, `main` 3개 브랜치 존재.
 - 로컬에 `kubeseal` CLI 설치(`brew install kubeseal` 또는 GitHub Releases).
 
 - [ ] **Step 1: Phase 1 apply — 인프라 + 클러스터 + 애드온 + Argo + Sealed Secrets (API Gateway 제외)**
@@ -1279,7 +1282,6 @@ terraform apply -target=module.eks   # 클러스터 먼저
 terraform apply -target=helm_release.aws_lbc \
                 -target=helm_release.cluster_autoscaler \
                 -target=helm_release.metrics_server \
-                -target=helm_release.external_dns \
                 -target=helm_release.kube_prometheus_stack \
                 -target=helm_release.sealed_secrets \
                 -target=helm_release.argocd \
@@ -1359,9 +1361,12 @@ terraform apply   # 모든 나머지 + API Gateway × 3 생성
 
 ```bash
 # Amplify 콘솔에서 3개 브랜치 빌드 상태 확인
-# Amplify 도메인 연결 검증(ACM/Route53 자동 처리) 완료 후:
-curl -I https://dev.<domain>
-curl -I https://api-dev.<domain>/api/health
+# 실제 URL은 terraform output으로 확인:
+terraform output amplify_branch_urls    # SPA URL × 3
+terraform output apigateway_endpoints   # API URL × 3
+# 그 다음 헬스체크:
+curl -I "$(terraform output -json amplify_branch_urls | jq -r .dev)"
+curl -I "$(terraform output -json apigateway_endpoints | jq -r .dev)/api/health"
 ```
 
 CloudFront 없이 Amplify가 직접 TLS 종료. SPA 로드 + API 호출(CORS 동작) 브라우저로 확인.
@@ -1378,7 +1383,7 @@ kubectl get secret -n sealed-secrets -l sealedsecrets.bitnami.com/sealed-secrets
 
 - [ ] **Step 9: e2e CI 한 사이클 확인**
 
-backend 코드를 사소하게 수정해서 main에 push → cd.yml이 ECR push + write-back commit + Argo dev sync → dev에서 새 이미지 배포 확인. frontend 코드 수정해서 develop에 push → Amplify가 자동 빌드 → dev.<domain>에 반영.
+backend 코드를 사소하게 수정해서 main에 push → cd.yml이 ECR push + write-back commit + Argo dev sync → dev에서 새 이미지 배포 확인. frontend 코드 수정해서 develop에 push → Amplify가 자동 빌드 → develop.<app-id>.amplifyapp.com에 반영.
 
 - [ ] **Step 10: 승격 PR 동작 확인**
 
