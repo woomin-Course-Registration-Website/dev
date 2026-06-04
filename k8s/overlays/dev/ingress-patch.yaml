@@ -4,6 +4,4 @@ metadata:
   name: main
   namespace: student-mgmt
   annotations:
-    alb.ingress.kubernetes.io/certificate-arn: "<ACM_CERT_ARN>"
     alb.ingress.kubernetes.io/group.name: student-mgmt-dev
-    external-dns.alpha.kubernetes.io/hostname: "dev.<domain>"

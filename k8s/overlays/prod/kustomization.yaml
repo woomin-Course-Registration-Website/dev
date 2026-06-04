@@ -3,13 +3,10 @@ kind: Kustomization
 namespace: student-mgmt-prod
 resources:
   - ../../base
+  - sealed-secrets
 images:
   - name: student-mgmt/backend
     newName: <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com/student-mgmt/backend
     newTag: latest
-  - name: student-mgmt/frontend
-    newName: <ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com/student-mgmt/frontend
-    newTag: latest
 patches:
   - path: ingress-patch.yaml
-  - path: externalsecret-patch.yaml
