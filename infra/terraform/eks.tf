@@ -102,34 +102,6 @@ module "lbc_irsa" {
   }
 }
 
-module "eso_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.39"
-
-  role_name = "${var.project}-external-secrets"
-
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["external-secrets:external-secrets"]
-    }
-  }
-}
-
-# ESO가 Secrets Manager에서 시크릿을 읽을 수 있는 권한
-resource "aws_iam_role_policy" "eso_secrets_manager" {
-  name = "${var.project}-eso-secrets-manager"
-  role = module.eso_irsa.iam_role_name
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
-      Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project}/*"
-    }]
-  })
-}
 
 module "cluster_autoscaler_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
@@ -184,21 +156,6 @@ resource "helm_release" "aws_lbc" {
   depends_on = [module.eks]
 }
 
-resource "helm_release" "external_secrets" {
-  name             = "external-secrets"
-  repository       = "https://charts.external-secrets.io"
-  chart            = "external-secrets"
-  namespace        = "external-secrets"
-  create_namespace = true
-  version          = "0.9.17"
-
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = module.eso_irsa.iam_role_arn
-  }
-
-  depends_on = [module.eks]
-}
 
 resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"
@@ -419,5 +376,5 @@ resource "helm_release" "argocd_bootstrap" {
     value = var.aws_region
   }
 
-  depends_on = [helm_release.argocd, helm_release.external_secrets]
+  depends_on = [helm_release.argocd]
 }
