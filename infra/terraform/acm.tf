@@ -32,20 +32,3 @@ resource "aws_acm_certificate_validation" "main" {
   certificate_arn         = aws_acm_certificate.main.arn
   validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
 }
-
-# CloudFront용 TLS 인증서 — 반드시 us-east-1 리전에서 발급
-resource "aws_acm_certificate" "cloudfront" {
-  provider                  = aws.us_east_1
-  domain_name               = var.domain_name
-  subject_alternative_names = ["*.${var.domain_name}"]
-  validation_method         = "DNS"
-
-  lifecycle { create_before_destroy = true }
-}
-
-resource "aws_acm_certificate_validation" "cloudfront" {
-  provider        = aws.us_east_1
-  certificate_arn = aws_acm_certificate.cloudfront.arn
-  # ap-northeast-2에서 만든 DNS 검증 레코드를 공유
-  validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
-}
