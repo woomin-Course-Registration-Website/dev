@@ -14,7 +14,8 @@ data "aws_lb" "env" {
   for_each = local.apigw_envs
 
   tags = {
-    "ingress.k8s.aws/stack" = "${each.value.ns}/main"
+    # IngressGroup이 적용된 ALB의 stack 태그는 group.name과 동일(== ns).
+    "ingress.k8s.aws/stack" = each.value.ns
     "elbv2.k8s.aws/cluster" = module.eks.cluster_name
   }
 }
@@ -140,7 +141,7 @@ data "aws_security_group" "alb_env" {
   }
   filter {
     name   = "tag:ingress.k8s.aws/stack"
-    values = ["${each.value.ns}/main"]
+    values = [each.value.ns]
   }
 }
 

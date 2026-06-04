@@ -37,7 +37,7 @@
 - `infra/terraform/amplify.tf`
 - `infra/terraform/apigateway.tf`
 - `amplify.yml` (repo root)
-- (운영자가 컷오버 시) `k8s/overlays/{dev,staging,prod}/sealed-secrets/backend-credentials.yaml`
+- (운영자가 컷오버 시) `k8s/overlays/{dev,staging,prod}/sealed-secrets/backend-secrets.yaml`
 
 **수정**
 - `infra/terraform/eks.tf` — ESO·Fluent Bit helm_release/IRSA 제거, Sealed Secrets helm_release 추가, ALB SG 입력 허용
@@ -553,7 +553,7 @@ kind: Kustomization
 resources: []
 # 컷오버 시 운영자가 kubeseal로 생성한 SealedSecret YAML 파일들을
 # resources 리스트에 추가하고 커밋한다.
-# 예: resources: [backend-credentials.yaml]
+# 예: resources: [backend-secrets.yaml]
 ```
 
 - [ ] **Step 5: staging/prod도 동일 구조 적용 (값만 치환)**
@@ -1310,17 +1310,17 @@ DB_PW=$(openssl rand -base64 24)
 JWT=$(openssl rand -base64 48)
 
 # dev 예시 (staging/prod 동일 절차, 값과 디렉토리만 치환)
-kubectl create secret generic backend-credentials -n student-mgmt-dev \
+kubectl create secret generic backend-secrets -n student-mgmt-dev \
   --from-literal=DB_USERNAME=appuser \
   --from-literal=DB_PASSWORD="$DB_PW" \
   --from-literal=SPRING_DATASOURCE_URL="jdbc:mysql://<rds-endpoint>:3306/student_mgmt_dev?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true" \
   --from-literal=JWT_SECRET="$JWT" \
   --dry-run=client -o yaml | \
 kubeseal --controller-namespace sealed-secrets --format yaml \
-  > k8s/overlays/dev/sealed-secrets/backend-credentials.yaml
+  > k8s/overlays/dev/sealed-secrets/backend-secrets.yaml
 
 # kustomization.yaml의 resources에 추가
-sed -i 's|resources: \[\]|resources:\n  - backend-credentials.yaml|' k8s/overlays/dev/sealed-secrets/kustomization.yaml
+sed -i 's|resources: \[\]|resources:\n  - backend-secrets.yaml|' k8s/overlays/dev/sealed-secrets/kustomization.yaml
 
 # staging, prod도 동일 — 값(특히 JDBC URL의 DB명)만 치환
 
@@ -1341,7 +1341,7 @@ kubectl run mysql-init --rm -it --image=mysql:8 -n student-mgmt-dev --restart=Ne
 
 ```bash
 kubectl get sealedsecrets -A
-kubectl get secrets -n student-mgmt-dev backend-credentials   # Owned by SealedSecret
+kubectl get secrets -n student-mgmt-dev backend-secrets   # Owned by SealedSecret
 kubectl get pods -n student-mgmt-dev   # backend Pod Running
 kubectl get ingress -n student-mgmt-dev   # ALB 호스트네임 발급 확인
 ```
@@ -1409,7 +1409,7 @@ GitHub Actions 탭 → `Promote` workflow → from=dev, to=staging 실행 → PR
 **3. 타입/명명 일관성**:
 - 이미지 이름 `student-mgmt/backend`: base deployment, overlay images, cd.yml, promote.yml에서 모두 동일.
 - 네임스페이스 `student-mgmt-{env}`: overlays, ApplicationSet, AppProject, API Gateway local map 모두 동일.
-- 시크릿 이름 `backend-credentials`: base deployment의 envFrom, SealedSecret target name 모두 동일.
+- 시크릿 이름 `backend-secrets`: base deployment의 envFrom, SealedSecret target name 모두 동일.
 - ALB 태그 `ingress.k8s.aws/stack=student-mgmt-{env}/main`, `elbv2.k8s.aws/cluster=...`: 일관.
 - helm_release 이름 `sealed_secrets`, `argocd`, `argocd_bootstrap`: 일관.
 
