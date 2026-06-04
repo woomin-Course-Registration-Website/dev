@@ -7,15 +7,6 @@ resource "aws_ecr_repository" "backend" {
   }
 }
 
-resource "aws_ecr_repository" "frontend" {
-  name                 = "${var.project}/frontend"
-  image_tag_mutability = "IMMUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-}
-
 resource "aws_ecr_lifecycle_policy" "backend" {
   repository = aws_ecr_repository.backend.name
 
@@ -44,9 +35,4 @@ resource "aws_ecr_lifecycle_policy" "backend" {
       }
     ]
   })
-}
-
-resource "aws_ecr_lifecycle_policy" "frontend" {
-  repository = aws_ecr_repository.frontend.name
-  policy     = aws_ecr_lifecycle_policy.backend.policy
 }

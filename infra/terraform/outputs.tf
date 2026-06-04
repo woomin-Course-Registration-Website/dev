@@ -8,11 +8,6 @@ output "ecr_backend_url" {
   value       = aws_ecr_repository.backend.repository_url
 }
 
-output "ecr_frontend_url" {
-  description = "프론트엔드 ECR URL"
-  value       = aws_ecr_repository.frontend.repository_url
-}
-
 output "rds_endpoint" {
   description = "RDS 엔드포인트 (Secrets Manager에 자동 저장됨)"
   value       = module.rds.db_instance_endpoint
