@@ -13,11 +13,6 @@ variable "project" {
   default = "student-mgmt"
 }
 
-variable "domain_name" {
-  description = "서비스 도메인 (e.g. example.com) — Route53에 호스팅 존 사전 등록 필요"
-  type        = string
-}
-
 variable "eks_node_instance_type" {
   type    = string
   default = "t3.medium"

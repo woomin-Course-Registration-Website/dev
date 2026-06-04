@@ -20,24 +20,21 @@ output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions.arn
 }
 
-output "acm_cert_arn" {
-  description = "k8s/ingress.yaml annotation에 입력"
-  value       = aws_acm_certificate_validation.main.certificate_arn
-}
-
 output "amplify_app_id" {
   description = "Amplify 앱 ID (콘솔 링크용)"
   value       = aws_amplify_app.main.id
 }
 
-output "amplify_default_domain" {
-  description = "Amplify 기본 amplifyapp.com 도메인"
-  value       = aws_amplify_app.main.default_domain
+output "amplify_branch_urls" {
+  description = "환경별 SPA URL (Amplify 기본 도메인)"
+  value = {
+    for k, v in local.amplify_branches : k => "https://${v.branch}.${aws_amplify_app.main.default_domain}"
+  }
 }
 
 output "apigateway_endpoints" {
-  description = "환경별 API Gateway 커스텀 도메인 URL"
+  description = "환경별 API Gateway 기본 invoke URL (frontend VITE_API_BASE_URL에 /api 붙여서 사용)"
   value = {
-    for k, _ in aws_apigatewayv2_api.env : k => "https://${aws_apigatewayv2_domain_name.env[k].domain_name}"
+    for k, v in aws_apigatewayv2_api.env : k => v.api_endpoint
   }
 }

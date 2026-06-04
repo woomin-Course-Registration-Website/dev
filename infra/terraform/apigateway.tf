@@ -2,9 +2,9 @@
 
 locals {
   apigw_envs = {
-    dev     = { prefix = "api-dev", spa_prefix = "dev", ns = "student-mgmt-dev" }
-    staging = { prefix = "api-staging", spa_prefix = "staging", ns = "student-mgmt-staging" }
-    prod    = { prefix = "api", spa_prefix = "", ns = "student-mgmt-prod" }
+    dev     = { ns = "student-mgmt-dev" }
+    staging = { ns = "student-mgmt-staging" }
+    prod    = { ns = "student-mgmt-prod" }
   }
 }
 
@@ -57,9 +57,10 @@ resource "aws_apigatewayv2_api" "env" {
   name          = "${var.project}-${each.key}"
   protocol_type = "HTTP"
 
+  # CORS: 환경별 Amplify 기본 도메인(<branch>.<app-id>.amplifyapp.com)에서만 허용.
   cors_configuration {
     allow_origins = [
-      each.value.spa_prefix == "" ? "https://${var.domain_name}" : "https://${each.value.spa_prefix}.${var.domain_name}"
+      "https://${local.amplify_branches[each.key].branch}.${aws_amplify_app.main.default_domain}"
     ]
     allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers = ["Authorization", "Content-Type"]
@@ -96,40 +97,7 @@ resource "aws_apigatewayv2_stage" "env_default" {
   auto_deploy = true
 }
 
-# 커스텀 도메인 (api.<domain> / api-dev.<domain> / api-staging.<domain>)
-resource "aws_apigatewayv2_domain_name" "env" {
-  for_each = local.apigw_envs
-
-  domain_name = "${each.value.prefix}.${var.domain_name}"
-
-  domain_name_configuration {
-    certificate_arn = aws_acm_certificate_validation.main.certificate_arn
-    endpoint_type   = "REGIONAL"
-    security_policy = "TLS_1_2"
-  }
-}
-
-resource "aws_apigatewayv2_api_mapping" "env" {
-  for_each = local.apigw_envs
-
-  api_id      = aws_apigatewayv2_api.env[each.key].id
-  domain_name = aws_apigatewayv2_domain_name.env[each.key].id
-  stage       = aws_apigatewayv2_stage.env_default[each.key].name
-}
-
-resource "aws_route53_record" "apigw_env" {
-  for_each = local.apigw_envs
-
-  zone_id = data.aws_route53_zone.main.zone_id
-  name    = aws_apigatewayv2_domain_name.env[each.key].domain_name
-  type    = "A"
-
-  alias {
-    name                   = aws_apigatewayv2_domain_name.env[each.key].domain_name_configuration[0].target_domain_name
-    zone_id                = aws_apigatewayv2_domain_name.env[each.key].domain_name_configuration[0].hosted_zone_id
-    evaluate_target_health = false
-  }
-}
+# 커스텀 도메인 없음: API Gateway의 기본 invoke URL(https://<api-id>.execute-api.<region>.amazonaws.com)을 그대로 사용.
 
 # ALB SG에 VPC Link SG 입력 허용 (aws-load-balancer-controller가 만든 ALB SG 조회 후 룰 추가)
 data "aws_security_group" "alb_env" {

@@ -119,22 +119,6 @@ module "cluster_autoscaler_irsa" {
   }
 }
 
-module "external_dns_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.39"
-
-  role_name                     = "${var.project}-external-dns"
-  attach_external_dns_policy    = true
-  external_dns_hosted_zone_arns = [data.aws_route53_zone.main.arn]
-
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:external-dns"]
-    }
-  }
-}
-
 # ── Helm Releases ──────────────────────────────────────────────────────────
 
 resource "helm_release" "aws_lbc" {
@@ -191,29 +175,6 @@ resource "helm_release" "metrics_server" {
   depends_on = [module.eks]
 }
 
-# Ingress 생성 시 Route53 레코드를 자동으로 관리
-resource "helm_release" "external_dns" {
-  name       = "external-dns"
-  repository = "https://kubernetes-sigs.github.io/external-dns/"
-  chart      = "external-dns"
-  namespace  = "kube-system"
-  version    = "1.14.5"
-
-  set {
-    name  = "provider"
-    value = "aws"
-  }
-  set {
-    name  = "aws.region"
-    value = var.aws_region
-  }
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = module.external_dns_irsa.iam_role_arn
-  }
-
-  depends_on = [module.eks]
-}
 
 # ── Prometheus + Grafana (앱 메트릭 스크랩) ──────────────────────────────────
 # Grafana는 Ingress 미설정 — 접근 시 `kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80`
@@ -261,29 +222,12 @@ resource "helm_release" "argocd" {
   create_namespace = true
   version          = var.argocd_chart_version
 
-  values = [yamlencode({
-    configs = {
-      params = { "server.insecure" = true }
-    }
-    server = {
-      ingress = {
-        enabled          = true
-        ingressClassName = "alb"
-        hostname         = "argocd.${var.domain_name}"
-        annotations = {
-          "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
-          "alb.ingress.kubernetes.io/target-type"     = "ip"
-          "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTP\":80},{\"HTTPS\":443}]"
-          "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
-          "alb.ingress.kubernetes.io/certificate-arn" = aws_acm_certificate_validation.main.certificate_arn
-          "alb.ingress.kubernetes.io/group.name"      = "argocd"
-          "external-dns.alpha.kubernetes.io/hostname" = "argocd.${var.domain_name}"
-        }
-      }
-    }
-  })]
+  # 공용 노출 없음. UI는 port-forward 전용:
+  # kubectl port-forward svc/argocd-server -n argocd 8080:443
+  # 초기 admin 비밀번호:
+  # kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
 
-  depends_on = [module.eks, helm_release.aws_lbc]
+  depends_on = [module.eks]
 }
 
 resource "helm_release" "argocd_bootstrap" {

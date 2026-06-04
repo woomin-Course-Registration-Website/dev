@@ -40,9 +40,9 @@ resource "aws_amplify_app" "main" {
 
 locals {
   amplify_branches = {
-    dev     = { branch = "develop", prefix = "dev" }
-    staging = { branch = "staging", prefix = "staging" }
-    prod    = { branch = "main", prefix = "" }
+    dev     = { branch = "develop" }
+    staging = { branch = "staging" }
+    prod    = { branch = "main" }
   }
 }
 
@@ -56,20 +56,9 @@ resource "aws_amplify_branch" "env" {
 
   enable_auto_build = true
 
+  # API Gateway 기본 invoke URL을 그대로 사용 (커스텀 도메인 없음).
+  # frontend client.js가 baseURL = '/api'를 기대하므로 끝에 /api를 붙임.
   environment_variables = {
-    VITE_API_URL = each.value.prefix == "" ? "https://api.${var.domain_name}" : "https://api-${each.value.prefix}.${var.domain_name}"
-  }
-}
-
-resource "aws_amplify_domain_association" "main" {
-  app_id      = aws_amplify_app.main.id
-  domain_name = var.domain_name
-
-  dynamic "sub_domain" {
-    for_each = local.amplify_branches
-    content {
-      branch_name = aws_amplify_branch.env[sub_domain.key].branch_name
-      prefix      = sub_domain.value.prefix
-    }
+    VITE_API_BASE_URL = "${aws_apigatewayv2_api.env[each.key].api_endpoint}/api"
   }
 }
