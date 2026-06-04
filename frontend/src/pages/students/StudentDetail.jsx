@@ -20,7 +20,7 @@ const catLabel = { GRADE: '성적', BEHAVIOR: '행동', ATTENDANCE: '출결', AT
 const rankColor = (r) => {
   if (!r) return 'text-gray-300'
   if (r.startsWith('A')) return 'text-green-600 font-bold'
-  if (r.startsWith('B')) return 'text-blue-600 font-bold'
+  if (r.startsWith('B')) return 'text-brand-600 font-bold'
   if (r.startsWith('C')) return 'text-amber-600 font-bold'
   return 'text-red-600 font-bold'
 }

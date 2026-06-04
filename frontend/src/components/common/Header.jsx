@@ -3,7 +3,7 @@ import useAuthStore from '../../store/authStore'
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications'
 
 const typeColor = {
-  GRADE:      'bg-blue-100 text-blue-700',
+  GRADE:      'bg-brand-100 text-brand-700',
   FEEDBACK:   'bg-purple-100 text-purple-700',
   COUNSELING: 'bg-green-100 text-green-700',
 }

@@ -16,7 +16,7 @@ function calcRank(score) {
 const rankColor = (r) => {
   if (!r) return 'text-gray-300'
   if (r.startsWith('A')) return 'text-green-600'
-  if (r.startsWith('B')) return 'text-blue-600'
+  if (r.startsWith('B')) return 'text-brand-600'
   if (r.startsWith('C')) return 'text-amber-600'
   return 'text-red-500'
 }
