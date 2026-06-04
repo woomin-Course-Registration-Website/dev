@@ -19,10 +19,6 @@ output "rds_endpoint" {
   sensitive   = true
 }
 
-output "cloudfront_domain" {
-  description = "CloudFront 배포 도메인"
-  value       = aws_cloudfront_distribution.main.domain_name
-}
 
 output "github_actions_role_arn" {
   description = "GitHub Secrets > AWS_ROLE_ARN 에 입력"
