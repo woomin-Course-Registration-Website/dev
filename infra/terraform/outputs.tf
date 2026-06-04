@@ -34,3 +34,10 @@ output "amplify_default_domain" {
   description = "Amplify 기본 amplifyapp.com 도메인"
   value       = aws_amplify_app.main.default_domain
 }
+
+output "apigateway_endpoints" {
+  description = "환경별 API Gateway 커스텀 도메인 URL"
+  value = {
+    for k, _ in aws_apigatewayv2_api.env : k => "https://${aws_apigatewayv2_domain_name.env[k].domain_name}"
+  }
+}
