@@ -57,7 +57,7 @@ export default function Header({ onMenuClick }) {
   }
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 gap-3 z-30">
+    <header className="h-16 bg-surface/80 backdrop-blur-sm border-b border-gray-200 flex items-center px-4 gap-3 z-30">
       {/* 햄버거 (모바일) */}
       <button
         onClick={onMenuClick}
@@ -88,7 +88,7 @@ export default function Header({ onMenuClick }) {
         </button>
 
         {open && (
-          <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-modal border border-gray-200 overflow-hidden animate-slide-up z-50">
+          <div className="absolute right-0 mt-2 w-80 bg-surface rounded-2xl shadow-soft border border-gray-200 overflow-hidden animate-slide-up z-50">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <span className="font-semibold text-sm text-gray-900">알림</span>
               {unread > 0 && (
@@ -130,7 +130,7 @@ export default function Header({ onMenuClick }) {
 
       {/* 프로필 */}
       <div className="flex items-center gap-2.5 pl-2">
-        <div className="w-8 h-8 rounded-full bg-primary-700 text-white flex items-center justify-center text-sm font-semibold">
+        <div className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center text-sm font-semibold">
           {user?.name?.[0] ?? 'T'}
         </div>
         <div className="hidden sm:block">
