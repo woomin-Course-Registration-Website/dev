@@ -3,7 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - network-policy.yaml
-  - external-secrets/backend-secrets.yaml
   - backend/deployment.yaml
   - backend/service.yaml
   - backend/hpa.yaml
