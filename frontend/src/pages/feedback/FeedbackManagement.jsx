@@ -5,7 +5,7 @@ import useAuthStore from '../../store/authStore'
 
 const CATEGORY_MAP     = { GRADE: '성적', BEHAVIOR: '행동', ATTENDANCE: '출결', ATTITUDE: '태도', OTHER: '기타' }
 const CATEGORY_REVERSE = { '성적': 'GRADE', '행동': 'BEHAVIOR', '출결': 'ATTENDANCE', '태도': 'ATTITUDE', '기타': 'OTHER' }
-const catColor         = { 성적: 'badge-blue', 행동: 'badge-green', 태도: 'badge-purple', 출결: 'badge-amber', 기타: 'badge-gray' }
+const catColor         = { 성적: 'badge-brand', 행동: 'badge-green', 태도: 'badge-purple', 출결: 'badge-amber', 기타: 'badge-gray' }
 const CATEGORIES       = ['전체', '성적', '행동', '태도', '출결', '기타']
 const EMPTY_FORM       = { studentId: '', category: '성적', content: '', isPublic: false }
 
@@ -16,7 +16,7 @@ function FeedbackCard({ f, studentName, onToggle, onEdit, onDelete, editable }) 
     <div className="card p-5">
       <div className="flex items-start justify-between gap-3 mb-2.5">
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
+          <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold">
             {(f.studentName || studentName || '?')[0]}
           </div>
           <span className="font-semibold text-gray-900 text-sm">{f.studentName || studentName}</span>

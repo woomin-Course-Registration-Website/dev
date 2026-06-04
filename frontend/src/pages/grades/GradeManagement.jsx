@@ -180,7 +180,7 @@ export default function GradeManagement() {
               const rank  = calcRank(score)
               const isSaved = savedIds.has(s.id)
               return (
-                <tr key={s.id} className={`table-row ${score == null ? 'bg-gray-50/60' : ''}`}>
+                <tr key={s.id} className={`table-row even:bg-stone-50/50 hover:bg-brand-50/40 transition-colors ${score == null ? 'bg-gray-50/60' : ''}`}>
                   <td className="table-cell text-center text-gray-400 font-mono text-xs">{i + 1}</td>
                   <td className="table-cell">
                     <div className="flex items-center gap-2.5">
@@ -198,7 +198,7 @@ export default function GradeManagement() {
                       className="input text-right w-28 h-8 py-1 font-mono"
                     />
                   </td>
-                  <td className={`table-cell text-center font-mono text-base ${rankColor(rank)}`}>
+                  <td className={`table-cell text-center font-mono tabular text-base ${rankColor(rank)}`}>
                     {rank || <span className="text-gray-300">—</span>}
                   </td>
                   <td className="table-cell text-center">
@@ -218,16 +218,16 @@ export default function GradeManagement() {
       {/* 통계 */}
       <div className="card p-5">
         <h3 className="font-semibold text-gray-900 mb-3 text-sm">반 통계</h3>
-        <div className="flex flex-wrap gap-6">
+        <div className="flex flex-wrap gap-3">
           {[
-            { label: '평균', value: avg, color: 'text-primary-700' },
-            { label: '최고', value: max, color: 'text-green-600'   },
-            { label: '최저', value: min, color: 'text-red-500'     },
+            { label: '평균', value: avg, color: 'text-brand-700' },
+            { label: '최고', value: max, color: 'text-green-600' },
+            { label: '최저', value: min, color: 'text-rose-600' },
             { label: '입력 완료', value: `${filled.length}/${students.length}명`, color: 'text-gray-900' },
           ].map(({ label, value, color }) => (
-            <div key={label} className="text-center">
+            <div key={label} className="card px-5 py-3 text-center min-w-[80px]">
               <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-              <p className={`text-xl font-bold font-mono ${color}`}>{value}</p>
+              <p className={`text-xl font-bold tabular ${color}`}>{value}</p>
             </div>
           ))}
         </div>
