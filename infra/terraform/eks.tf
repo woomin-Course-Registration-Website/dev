@@ -264,20 +264,6 @@ resource "helm_release" "argocd" {
   values = [yamlencode({
     configs = {
       params = { "server.insecure" = true }
-      cm = {
-        "resource.customizations.health.external-secrets.io_ExternalSecret" = <<-EOT
-          hs = {}
-          if obj.status ~= nil and obj.status.conditions ~= nil then
-            for _, c in ipairs(obj.status.conditions) do
-              if c.type == "Ready" and c.status == "True" then
-                hs.status = "Healthy"; hs.message = c.message; return hs
-              end
-            end
-          end
-          hs.status = "Progressing"; hs.message = "Waiting for ExternalSecret to be Ready"
-          return hs
-        EOT
-      }
     }
     server = {
       ingress = {
@@ -308,10 +294,6 @@ resource "helm_release" "argocd_bootstrap" {
   set {
     name  = "repoURL"
     value = "https://github.com/${var.github_org}/${var.github_repo}.git"
-  }
-  set {
-    name  = "region"
-    value = var.aws_region
   }
 
   depends_on = [helm_release.argocd]
