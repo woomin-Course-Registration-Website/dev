@@ -24,3 +24,13 @@ output "acm_cert_arn" {
   description = "k8s/ingress.yaml annotation에 입력"
   value       = aws_acm_certificate_validation.main.certificate_arn
 }
+
+output "amplify_app_id" {
+  description = "Amplify 앱 ID (콘솔 링크용)"
+  value       = aws_amplify_app.main.id
+}
+
+output "amplify_default_domain" {
+  description = "Amplify 기본 amplifyapp.com 도메인"
+  value       = aws_amplify_app.main.default_domain
+}

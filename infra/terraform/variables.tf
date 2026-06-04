@@ -83,3 +83,9 @@ variable "sealed_secrets_chart_version" {
   type        = string
   default     = "2.16.1"
 }
+
+variable "amplify_github_token" {
+  description = "Amplify가 GitHub repo를 watch하기 위한 PAT (repo, admin:repo_hook 권한)"
+  type        = string
+  sensitive   = true
+}
