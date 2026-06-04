@@ -157,7 +157,7 @@ SecurityTestHelper.stubAsInvalid(jwtUtil);
 - [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) — AWS 리소스 카탈로그·EKS 애드온·IAM/IRSA·Terraform 부트스트랩
 - [docs/DESIGN.md](docs/DESIGN.md) — UI 디자인 시스템
 - [docs/WIREFRAME.md](docs/WIREFRAME.md) — 페이지별 와이어프레임
-- [BACKLOG.md](BACKLOG.md) — 제품 백로그 (6 스프린트, 139 SP)
+- [BACKLOG.md](BACKLOG.md) — 제품 백로그 (8 스프린트, 181 SP)
 
 ## Git 컨벤션
 
