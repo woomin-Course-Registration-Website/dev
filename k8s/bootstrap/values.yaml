@@ -1,6 +1,5 @@
 repoURL: ""        # Terraform이 주입: https://github.com/<org>/<repo>.git
 targetRevision: main
-region: ap-northeast-2
 environments:
   - dev
   - staging
