@@ -7,6 +7,6 @@ resources:
 images:
 - name: student-mgmt/backend
   newName: 899259776537.dkr.ecr.ap-northeast-2.amazonaws.com/student-mgmt/backend
-  newTag: 9b0d383f7dd62ba3710c80ac5c858c7794bb50e3
+  newTag: 31dd6019e3041b623f8f3023863c6d14bb1c83d4
 patches:
 - path: ingress-patch.yaml
