@@ -3,6 +3,12 @@ services:
     image: mysql:8.0
     container_name: student-db
     restart: unless-stopped
+    # binlog(ROW) 활성화 — Debezium CDC(가점)용. CDC 미사용 시에도 무해.
+    command:
+      - "--server-id=1"
+      - "--log-bin=mysql-bin"
+      - "--binlog-format=ROW"
+      - "--binlog-row-image=FULL"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE: student_management
@@ -12,6 +18,8 @@ services:
       - "3306:3306"
     volumes:
       - db-data:/var/lib/mysql
+      # 분석 DB(student_analytics) 생성 + appuser 권한 부여 (최초 1회)
+      - ./docker/mysql-init/01-analytics-db.sql:/docker-entrypoint-initdb.d/01-analytics-db.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -27,11 +35,17 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/student_management?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+      # 분석(OLAP) DB
+      ANALYTICS_DATASOURCE_URL: jdbc:mysql://db:3306/student_analytics?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
       DB_USERNAME: ${DB_USERNAME:-appuser}
       DB_PASSWORD: ${DB_PASSWORD:-apppassword}
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-key-in-production-must-be-256-bits}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      # 학습 분석 — CDC(가점)/AI 챗봇(선택)
+      APP_ANALYTICS_CDC_ENABLED: ${CDC_ENABLED:-false}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LLM_API_KEY: ${LLM_API_KEY:-}
     ports:
       - "8080:8080"
     depends_on:
@@ -78,6 +92,42 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
+
+  # ── 학습 분석 CDC (가점) ──────────────────────────────────────────────
+  # 기본 비활성. 활성화: docker compose --profile cdc up  (+ backend CDC_ENABLED=true)
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: student-kafka
+    restart: unless-stopped
+    profiles: ["cdc"]
+    environment:
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+
+  kafka-connect:
+    image: debezium/connect:2.7
+    container_name: student-kafka-connect
+    restart: unless-stopped
+    profiles: ["cdc"]
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - db
 
 volumes:
   db-data:

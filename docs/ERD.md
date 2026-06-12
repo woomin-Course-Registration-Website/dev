@@ -193,3 +193,43 @@ CREATE INDEX idx_notifications_user ON notifications(user_id, is_read, created_a
 -- 학생 목록 조회
 CREATE INDEX idx_students_grade_class ON students(grade, class_num, student_num);
 ```
+
+---
+
+## EP-08 학습 분석 스키마
+
+### 운영 DB (`student_management`) — 과제 도메인 신설
+
+```
+assignments
+  id PK, subject_id FK→subjects, title, due_date, year, semester, created_at, updated_at
+
+submissions
+  id PK, assignment_id FK→assignments, student_id FK→students,
+  status(SUBMITTED|LATE|NOT_SUBMITTED), submitted_at, created_at, updated_at
+  UNIQUE(assignment_id, student_id)
+```
+
+운영 스키마는 Hibernate `ddl-auto`로 관리한다(prod: update, dev/test: create-drop). 별도 마이그레이션 도구 미사용 — 학습용 프로젝트.
+
+### 분석 DB (`student_analytics`) — Star Schema
+
+별도 데이터베이스. 운영 DB의 변경분을 ETL(스케줄러/CDC)로 적재한다. 분석 datasource `ddl-auto`로 자동 생성(Flyway 비대상).
+
+```
+-- Dimension (자연키 = 운영 PK)
+dim_student   student_id PK, name, grade, class_num, student_num
+dim_subject   subject_id PK, name
+dim_date      date_key PK(=year*10+semester), year, semester, label
+
+-- Fact
+fact_grade       id PK, student_id, subject_id, date_key, year, semester, score, grade_rank
+                 UNIQUE(student_id, subject_id, year, semester)
+fact_attendance  student_id PK, present, absent, late          -- 학생당 1행 스냅샷
+fact_submission  id PK, assignment_id, student_id, subject_id, date_key, year, semester, status, due_date
+                 UNIQUE(assignment_id, student_id)
+fact_feedback    id PK, feedback_id, student_id, category       -- UNIQUE(feedback_id)
+
+-- ETL 워터마크
+etl_checkpoint   source_table PK, last_synced_at
+```

@@ -13,6 +13,7 @@ const GradeManagement = lazy(() => import('./pages/grades/GradeManagement'))
 const FeedbackManagement = lazy(() => import('./pages/feedback/FeedbackManagement'))
 const CounselingManagement = lazy(() => import('./pages/counseling/CounselingManagement'))
 const Reports = lazy(() => import('./pages/reports/Reports'))
+const Analytics = lazy(() => import('./pages/analytics/Analytics'))
 const Settings = lazy(() => import('./pages/settings/Settings'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
@@ -48,6 +49,14 @@ export default function App() {
             <Route path="feedback" element={<FeedbackManagement />} />
             <Route path="counseling" element={<CounselingManagement />} />
             <Route path="reports" element={<Reports />} />
+            <Route
+              path="analytics"
+              element={
+                <PrivateRoute roles={['TEACHER', 'ADMIN']}>
+                  <Analytics />
+                </PrivateRoute>
+              }
+            />
             <Route path="settings" element={<Settings />} />
             <Route
               path="admin"
