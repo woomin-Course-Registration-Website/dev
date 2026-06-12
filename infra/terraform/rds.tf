@@ -13,6 +13,9 @@ module "rds" {
   allocated_storage     = 20
   max_allocated_storage = 100 # Storage Autoscaling 상한
 
+  # 디스크 평문 저장 금지 (개인정보보호법 정렬, 기본 AWS 관리 KMS 키)
+  storage_encrypted = true
+
   db_name  = "student_management"
   username = var.db_username
   password = var.db_password

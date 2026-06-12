@@ -95,6 +95,13 @@ resource "aws_apigatewayv2_stage" "env_default" {
   api_id      = aws_apigatewayv2_api.env[each.key].id
   name        = "$default"
   auto_deploy = true
+
+  # 기본 throttling: 100 req/s, burst 200 — DoS 방어용 안전선.
+  # 트래픽이 늘면 콘솔 또는 var로 상향 가능.
+  default_route_settings {
+    throttling_rate_limit  = 100
+    throttling_burst_limit = 200
+  }
 }
 
 # 커스텀 도메인 없음: API Gateway의 기본 invoke URL(https://<api-id>.execute-api.<region>.amazonaws.com)을 그대로 사용.
