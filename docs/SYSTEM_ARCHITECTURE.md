@@ -126,11 +126,12 @@
 - Argo가 sync → controller가 자기 비대칭 키로 복호화 → 일반 `Secret` 리소스 materialize.
 - 컨트롤러 키는 클러스터 부트스트랩 시 자동 생성, 운영자가 별도 백업 보관 필수(클러스터 재생성 시 복원용).
 
-### 3.7 관측 — kube-prometheus-stack
+### 3.7 관측 — kube-prometheus-stack + Loki
 - `monitoring` 네임스페이스에 Prometheus + Grafana + Alertmanager + 모든 CRDs(`ServiceMonitor` 등) 설치.
 - backend `ServiceMonitor`가 자동 스크랩.
-- Grafana/Prometheus UI는 **port-forward 전용**(`kubectl port-forward svc/...`) — 인터넷 노출 없음.
-- 로그는 별도 수집 인프라 없음 — `kubectl logs` 또는 `k9s`로 조회. Pod 재시작 시 이전 로그 손실.
+- **로그**: Loki(SingleBinary, 20Gi PV, 7일 보존) + Promtail(DaemonSet). Grafana에 Loki 데이터소스 자동 등록 → 메트릭+로그 통합 조회.
+- **알람 라우팅**: Alertmanager → Discord(웹훅 URL + `/slack`로 Slack 포맷 호환). 웹훅 값은 `alertmanager-discord-webhook` SealedSecret으로 주입.
+- Grafana/Prometheus/Alertmanager UI는 **port-forward 전용** — 인터넷 노출 없음.
 - AWS CloudWatch 알람/대시보드 미사용.
 
 ### 3.8 GitOps — Argo CD
