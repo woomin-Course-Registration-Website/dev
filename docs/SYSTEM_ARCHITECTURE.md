@@ -246,3 +246,105 @@
 자세한 절차는 [Task 21 컷오버 런북](superpowers/plans/2026-06-03-system-redesign.md#task-21) 참조.
 
 **복구**: Terraform state(S3) + git(매니페스트 + 암호화된 SealedSecret) + ECR 불변 이미지 + RDS 자동 백업 + Sealed Secrets 키 백업의 조합으로 전체 재구축 가능. SealedSecret 키를 잃으면 모든 시크릿을 다시 만들어야 함.
+
+---
+
+## 9. 학습 분석 (EP-08, **계획 — 미구현**)
+
+> [BACKLOG.md `EP-08`](../BACKLOG.md) 참조. 본 섹션은 **목표 아키텍처**를 기술하며, 코드/인프라에는 아직 반영되지 않았다. 별도 세션에서 구현 예정.
+
+### 9.1 데이터 분리 모델
+
+운영(트랜잭션) 데이터와 분석(집계) 데이터를 같은 RDS 인스턴스의 **별도 데이터베이스**로 분리:
+
+| 구분 | 데이터베이스 | 스키마 형태 | 용도 |
+|------|--------------|-------------|------|
+| 운영 | `student_mgmt_{env}` (기존) | 정규화된 OLTP 스키마 | 일상 트랜잭션 처리 (출결·과제·평가·피드백 CRUD) |
+| 분석 | `student_mgmt_analytics_{env}` (신규) | Star Schema (Fact + Dimension) | 학생별·과목별 학습 현황 집계 조회 |
+
+**Star Schema (예시):**
+- Fact: `fact_attendance`, `fact_submission`, `fact_grade`
+- Dimension: `dim_student`, `dim_subject`, `dim_date`, `dim_class`
+
+> 별도 RDS 인스턴스 분리는 안 함 — 비용 최소화. 운영/분석 부하 격리가 필요해지면 read replica 추가 또는 별 인스턴스 승격 가능.
+
+### 9.2 ETL 흐름 (2가지 방식 — 점수 단계별)
+
+#### A) 필수: 스케줄러 기반 batch ETL
+```
+운영 DB (student_mgmt_{env})
+    │ 매시간 (예: 매시 정각)
+    ▼
+Spring Boot 내부 @Scheduled ETL 컴포넌트
+  • 마지막 적재 시점 이후 변경된 row 조회 (updated_at 기준)
+  • Fact/Dimension 테이블에 upsert
+  • 학생별·과목별 집계 view 갱신
+    │
+    ▼
+분석 DB (student_mgmt_analytics_{env})
+```
+구현 위치: backend Spring Boot 내부. 별도 워크로드 추가 없음. 가장 단순.
+
+#### B) 가점: 메시지 스트림 기반 CDC (준실시간)
+```
+운영 DB (student_mgmt_{env})  ─── MySQL binlog ───┐
+                                                   ▼
+                                  Debezium MySQL Connector
+                                                   │
+                                                   ▼
+                                  Kafka 토픽 (도메인별 topic)
+                                                   │
+                                  ┌────────────────┴────────────────┐
+                                  ▼                                 ▼
+                       Kafka Connect JDBC Sink           Spring Kafka Consumer
+                       (분석 DB에 변환·적재)               (도메인 이벤트 처리)
+                                  │
+                                  ▼
+                       분석 DB (student_mgmt_analytics_{env})
+```
+구현은 클러스터에 `kafka` 네임스페이스 추가 필요(인프라 영향).
+
+### 9.3 집계·대시보드
+
+- **백엔드**: `AnalyticsController` + `AnalyticsService` 신규. 분석 DB에 read-only 연결(스프링 멀티 datasource).
+- **집계 API 예시**:
+  - `GET /api/analytics/students/{id}/summary` — 학생별 성적 추이·출결률·제출률·피드백 요약
+  - `GET /api/analytics/subjects/{id}/distribution` — 과목별 평균·분포·제출률
+- **프론트엔드**: `/analytics` 라우트 신규, Recharts 시각화.
+
+### 9.4 AI 챗봇 (선택, +8 SP)
+
+```
+학생/교사 → React 채팅 컴포넌트
+              │ SSE/스트리밍 응답
+              ▼
+       API Gateway → backend ChatService
+                          │
+              ┌───────────┴────────────┐
+              ▼                        ▼
+    분석 DB 조회 (function call)    LLM API (Claude / OpenAI / Bedrock)
+    "이 학생의 최근 성적 추이는?"   ↑
+              │                        │
+              └────── context ─────────┘
+                          │
+                          ▼
+                  최종 응답 → 사용자
+```
+
+- **컨텍스트 주입**: 사용자 권한에 따라 접근 가능한 학생·과목 데이터만 시스템 프롬프트에 포함하거나 function calling으로 조회 도구 제공.
+- **LLM API 키 관리**: Sealed Secret 패턴 그대로 사용 (`backend-secrets`에 `LLM_API_KEY` 추가).
+- **PII/권한**: 챗봇이 다른 학생의 데이터를 노출하지 않도록 Spring Security 컨텍스트로 쿼리 범위 제한.
+
+### 9.5 EP-08 추가 컴포넌트 요약
+
+| 컴포넌트 | 위치 | 구현 단계 |
+|---------|------|-----------|
+| 분석 DB(`student_mgmt_analytics_{env}`) + Star Schema | RDS (동일 인스턴스) | 필수 |
+| 스케줄러 ETL (`@Scheduled`) | backend Spring Boot 내부 | 필수 (옵션 A) |
+| `AnalyticsController`/`Service` | backend | 필수 |
+| `/analytics` 페이지·차트 | frontend | 필수 |
+| Kafka 클러스터 (MSK Serverless 또는 Strimzi) | AWS 또는 `kafka` 네임스페이스 | 가점 (옵션 B) |
+| Debezium MySQL Connector | Kafka Connect | 가점 |
+| LLM API 통합 (`ChatService`) | backend | 선택 |
+| 채팅 UI 컴포넌트 | frontend | 선택 |
+| LLM API 키 (SealedSecret) | k8s/overlays/{env}/sealed-secrets/ | 선택 |

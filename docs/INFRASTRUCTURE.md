@@ -223,3 +223,58 @@ terraform apply
 - **`deletion_protection: true`**라 RDS는 단순 `terraform destroy`로 삭제되지 않음(콘솔에서 보호 해제 후 삭제 필요).
 - **Sealed Secrets 키 분실 시**: 모든 SealedSecret을 다시 만들어야 함(원본 평문이 필요). 백업 필수.
 - **2-phase apply 의존성**: 첫 apply 후 Argo sync 완료를 기다리지 않고 두 번째 apply를 하면 `data "aws_lb"` resolve 실패. Task 21 런북 절차 준수.
+
+---
+
+## 10. 학습 분석(EP-08) 인프라 — **계획 / 미구현**
+
+> [SYSTEM_ARCHITECTURE.md §9](SYSTEM_ARCHITECTURE.md#9-학습-분석-ep-08-계획--미구현), [BACKLOG.md `EP-08`](../BACKLOG.md) 참조. 본 섹션은 EP-08 구현 시 추가될 인프라를 미리 정리. 별도 세션에서 작업.
+
+### 10.1 필수 — 분석 DB + 스케줄러 ETL
+
+추가 AWS 리소스 **0건**. 모두 기존 RDS·EKS 안에서 처리.
+
+| 항목 | 변경 |
+|------|------|
+| RDS 논리 DB | 환경별 `student_mgmt_analytics_{env}` 1회 SQL로 생성(`CREATE DATABASE ...`). 컷오버 런북에 추가. |
+| Spring Boot | `application.yml`에 분석 DB datasource 추가 (`spring.datasource.analytics.*`), `@EnableScheduling`로 ETL 컴포넌트 실행 |
+| SealedSecret | `backend-secrets`에 분석 DB 자격증명 추가(또는 운영과 동일 사용자 사용) |
+| 모니터링 | ETL 실패율·지연 시간을 Prometheus 메트릭으로 노출 (`/actuator/prometheus`에 자동 포함) |
+
+### 10.2 가점 — Kafka 기반 CDC
+
+**옵션 A: AWS MSK Serverless (관리형, 권장)**
+- `aws_msk_serverless_cluster` 리소스 신규
+- 비용: 처리량·스토리지 기반 종량제(저트래픽 학습용 프로젝트라면 월 $50~100 수준 가능)
+- IAM 인증 사용(IRSA로 backend Pod에 `kafka-cluster:*` 권한 부여)
+- 추가 Terraform: `infra/terraform/msk.tf` 신규
+
+**옵션 B: Strimzi (자체 호스팅, EKS 내부)**
+- `helm_release "strimzi_operator"` + Kafka·KafkaConnect Custom Resource
+- 추가 AWS 리소스 0건, 단 노드 그룹·EBS 스토리지 부담 증가
+- 비용 ↓, 운영 복잡도 ↑(Kafka 설정·운영 직접 책임)
+
+**공통**:
+- Debezium MySQL Connector를 Kafka Connect에서 실행 → 운영 DB binlog 읽기
+- 운영 DB MySQL 파라미터: `binlog_format=ROW`, `binlog_row_image=FULL` 필요 → `rds.tf`의 `parameters`에 추가
+- Kafka Connect JDBC Sink 또는 Spring Kafka Consumer가 분석 DB에 적재
+- backend NetworkPolicy에 Kafka 통신 허용
+
+### 10.3 선택 — AI 챗봇
+
+| 항목 | 추가/변경 |
+|------|----------|
+| LLM 제공자 | Claude(Anthropic API), OpenAI, 또는 AWS Bedrock 중 택1. Bedrock 선택 시 IRSA로 IAM 권한 부여 가능 (AWS 외부 API는 단순 키 인증) |
+| API 키 | SealedSecret `backend-secrets`에 `LLM_API_KEY` 추가 |
+| 백엔드 | `ChatController`, `ChatService` 신규. 분석 DB 조회 도구를 function calling으로 노출(권한별 데이터 범위 제한) |
+| 프론트엔드 | 채팅 UI 컴포넌트, SSE/streaming 응답 처리 |
+| API Gateway | streaming 응답 위해 HTTP API의 `payload_format_version`을 확인(2.0이면 SSE OK), 필요 시 `/api/chat` 라우트를 long-timeout으로 분리 |
+| 비용 | LLM API 토큰 사용량 종량제. Bedrock(Claude)은 영문 기준 $3/M input tokens 수준. 학생당 월 수십 회 질의면 매우 저렴 |
+
+### 10.4 EP-08 추가 시 부트스트랩 보강
+
+기존 [§7 2-phase apply](#7-terraform-부트스트랩-순서-2-phase) 절차에 다음 추가:
+- Phase 1과 Phase 2 사이 또는 Phase 2 이후 분석 DB `CREATE DATABASE student_mgmt_analytics_{env}` 1회 실행
+- (옵션 B Strimzi 선택 시) `helm_release "strimzi_operator"`를 Phase 1에 포함 → Argo가 KafkaCluster CR sync → Connect Cluster 기동
+- (옵션 A MSK 선택 시) `aws_msk_serverless_cluster`는 Phase 1에서 생성 가능(ALB 의존 없음)
+- LLM API 키 SealedSecret을 운영자가 kubeseal로 추가
