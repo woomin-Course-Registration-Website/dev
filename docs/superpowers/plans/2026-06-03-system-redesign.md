@@ -1320,12 +1320,18 @@ cd /c/Users/woomin/Desktop/Project/dev
 DB_PW=$(openssl rand -base64 24)
 JWT=$(openssl rand -base64 48)
 
+# CORS_ALLOWED_ORIGIN: prod 프로파일에서 필수(미설정 시 기동 실패).
+# 해당 환경 Amplify SPA URL을 넣는다. Amplify 배포 후 확인:
+#   terraform -chdir=infra/terraform output -json amplify_branch_urls | jq -r .dev
+CORS_ORIGIN="https://develop.<app-id>.amplifyapp.com"
+
 # dev 예시 (staging/prod 동일 절차, 값과 디렉토리만 치환)
 kubectl create secret generic backend-secrets -n student-mgmt-dev \
   --from-literal=DB_USERNAME=appuser \
   --from-literal=DB_PASSWORD="$DB_PW" \
   --from-literal=SPRING_DATASOURCE_URL="jdbc:mysql://<rds-endpoint>:3306/student_mgmt_dev?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true" \
   --from-literal=JWT_SECRET="$JWT" \
+  --from-literal=CORS_ALLOWED_ORIGIN="$CORS_ORIGIN" \
   --dry-run=client -o yaml | \
 kubeseal --controller-namespace sealed-secrets --format yaml \
   > k8s/overlays/dev/sealed-secrets/backend-secrets.yaml
