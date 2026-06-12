@@ -2,6 +2,7 @@ package com.studentmanagement.config;
 
 import jakarta.persistence.EntityManagerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -15,6 +16,8 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 운영(OLTP) 데이터소스 설정 — 기본(@Primary) datasource.
@@ -40,6 +43,11 @@ import javax.sql.DataSource;
 )
 public class OperationalDataSourceConfig {
 
+    // 멀티 datasource로 커스텀 EMF를 만들면 Boot가 spring.jpa.hibernate.ddl-auto를
+    // 빌더 기본값으로 자동 주입하지 않는다(운영 스키마 미생성 버그). 명시적으로 주입한다.
+    @Value("${spring.jpa.hibernate.ddl-auto:none}")
+    private String ddlAuto;
+
     @Bean
     @Primary
     @ConfigurationProperties("spring.datasource")
@@ -58,10 +66,14 @@ public class OperationalDataSourceConfig {
     public LocalContainerEntityManagerFactoryBean entityManagerFactory(
             EntityManagerFactoryBuilder builder,
             @Qualifier("dataSource") DataSource dataSource) {
+        Map<String, Object> props = new HashMap<>();
+        // 프로파일별 ddl-auto(dev=create-drop / prod=update / 기본=validate)를 명시 적용
+        props.put("hibernate.hbm2ddl.auto", ddlAuto);
         return builder
                 .dataSource(dataSource)
                 .packages("com.studentmanagement.domain")
                 .persistenceUnit("operational")
+                .properties(props)
                 .build();
     }
 
