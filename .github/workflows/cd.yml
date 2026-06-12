@@ -1,6 +1,7 @@
 name: CD
 
 on:
+  workflow_dispatch:   # 수동 트리거 (이미지 강제 재빌드용)
   push:
     branches: [main]
     tags:
