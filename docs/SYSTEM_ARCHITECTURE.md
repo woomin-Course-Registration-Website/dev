@@ -250,9 +250,19 @@
 
 ---
 
-## 9. 학습 분석 (EP-08, **계획 — 미구현**)
+## 9. 학습 분석 (EP-08, **구현 완료**)
 
-> [BACKLOG.md `EP-08`](../BACKLOG.md) 참조. 본 섹션은 **목표 아키텍처**를 기술하며, 코드/인프라에는 아직 반영되지 않았다. 별도 세션에서 구현 예정.
+> [BACKLOG.md `EP-08`](../BACKLOG.md) 참조. 본 섹션의 아키텍처는 **코드에 반영되어 있다**(필수 + 가점 CDC + 선택 AI 챗봇).
+>
+> **구현 요약:**
+> - **멀티 datasource**: `config/OperationalDataSourceConfig`(@Primary, 운영) + `config/AnalyticsDataSourceConfig`(분석 `student_analytics`). 분석 스키마는 datasource `ddl-auto`로 생성(Flyway는 운영 DB만 관리).
+> - **스타 스키마**: `analytics/domain`에 `DimStudent`·`DimSubject`·`DimDate` / `FactGrade`·`FactAttendance`·`FactSubmission`·`FactFeedback`.
+> - **배치 ETL**: `analytics/service/EtlService`(`@Scheduled` + `POST /api/analytics/etl/run` 수동 트리거, `updatedAt` 워터마크 증분).
+> - **과제 도메인 신설**: `domain/Assignment`·`Submission`(+`controller/AssignmentController`) — "과제 제출률" 원천. 운영 스키마는 Hibernate `ddl-auto`(prod: update)가 생성.
+> - **집계 API**: `analytics/service/AnalyticsService` + `controller/AnalyticsController`(overview / student summary / subject distribution).
+> - **대시보드**: `frontend/src/pages/analytics/Analytics.jsx`(Recharts) + `/analytics` 라우트(교사/관리자).
+> - **가점 CDC**: docker-compose `cdc` 프로파일(Kafka + Debezium) + `analytics/service/CdcConsumer`(`app.analytics.cdc.enabled=true`).
+> - **선택 챗봇**: `analytics/service/ChatService`(Anthropic `claude-opus-4-8`, 권한 범위 분석 데이터 컨텍스트 주입) + `controller/ChatController`(`POST /api/analytics/chat`). `LLM_API_KEY` 설정 시 활성.
 
 ### 9.1 데이터 분리 모델
 

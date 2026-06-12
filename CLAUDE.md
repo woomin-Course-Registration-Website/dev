@@ -58,12 +58,13 @@ MySQL 8 :3306  (DB: student_management)
 ```
 
 ### 백엔드 (`src/main/java/com/studentmanagement/`)
-- `config/` — `SecurityConfig`, `JwtConfig`, `CorsConfig` (inner @ConfigurationProperties), `SwaggerConfig`
-- `domain/` — User, Student, Subject, Grade, StudentRecord, Feedback, Counseling, Notification
+- `config/` — `SecurityConfig`, `JwtConfig`, `CorsConfig` (inner @ConfigurationProperties), `SwaggerConfig`, `OperationalDataSourceConfig`(@Primary)·`AnalyticsDataSourceConfig`(EP-08 멀티 datasource)
+- `domain/` — User, Student, Subject, Grade, StudentRecord, Feedback, Counseling, Notification, **Assignment, Submission**(EP-08)
 - `repository/` — 전체 구현 (커스텀 JPQL 포함)
-- `service/` — Auth, Student, Grade, StudentRecord, Feedback, Counseling, Notification, Subject, Report
-- `controller/` — 전체 구현 (Auth, User, Student, Grade, StudentRecord, Feedback, Counseling, Notification, Subject, Report)
-- `dto/` — `ApiResponse<T>`, 도메인별 Request/Response, report/ReportPreviewResponse
+- `service/` — Auth, Student, Grade, StudentRecord, Feedback, Counseling, Notification, Subject, Report, **Assignment**(EP-08)
+- `controller/` — 전체 구현 (Auth, User, Student, Grade, StudentRecord, Feedback, Counseling, Notification, Subject, Report, **Assignment, Analytics, Chat**)
+- `analytics/` — EP-08 학습 분석: `domain/`(Dim·Fact 스타 스키마), `repository/`, `service/`(`EtlService`·`AnalyticsService`·`CdcConsumer`·`ChatService`)
+- `dto/` — `ApiResponse<T>`, 도메인별 Request/Response, report/ReportPreviewResponse, **analytics/**(EP-08)
 - `exception/` — GlobalExceptionHandler, ResourceNotFoundException, UnauthorizedException
 - `util/JwtUtil` — JWT 생성/검증
 
@@ -74,8 +75,8 @@ MySQL 8 :3306  (DB: student_management)
 - `App.jsx` — React Router v6, PrivateRoute, `/register` 라우트 포함
 - `store/authStore.js` — Zustand + localStorage 영속화 (login/logout/setAccessToken)
 - `api/client.js` — axios baseURL `/api`, 401 자동 refresh + 큐잉
-- `api/` — auth, students, grades, records, feedbacks, counselings, notifications, subjects, reports
-- `pages/` — Login, Register, Dashboard, StudentList, StudentDetail, GradeManagement, FeedbackManagement, CounselingManagement, Reports (전부 API 연동 완료)
+- `api/` — auth, students, grades, records, feedbacks, counselings, notifications, subjects, reports, **analytics**(EP-08)
+- `pages/` — Login, Register, Dashboard, StudentList, StudentDetail, GradeManagement, FeedbackManagement, CounselingManagement, Reports, **analytics/Analytics**(EP-08, Recharts + AI 챗봇) (전부 API 연동 완료)
 - `components/common/` — Header (실시간 알림), Sidebar, Layout
 
 ### 주요 라이브러리
