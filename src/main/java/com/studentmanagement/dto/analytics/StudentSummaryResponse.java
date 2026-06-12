@@ -7,12 +7,16 @@ public record StudentSummaryResponse(
         Long studentId,
         String name,
         List<TermPoint> gradeTrend,
+        List<SubjectScore> subjectScores,
         Attendance attendance,
         SubmissionRate submission,
         List<CategoryCount> feedbackByCategory
 ) {
     /** 학년도/학기별 평균 점수 추이 한 점 */
     public record TermPoint(int year, int semester, double avgScore) {}
+
+    /** 과목별 평균 점수 (강·약 과목 분석용) */
+    public record SubjectScore(Long subjectId, String subjectName, double avgScore) {}
 
     /** 출결 요약 + 출석률 */
     public record Attendance(int present, int absent, int late, double rate) {}
