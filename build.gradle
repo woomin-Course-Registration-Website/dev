@@ -56,9 +56,17 @@ dependencies {
     // PDF 보고서 (OpenPDF - LGPL)
     implementation 'com.github.librepdf:openpdf:1.3.30'
 
+    // 학습 분석 CDC (Kafka — 가점, app.analytics.cdc.enabled=true일 때만 사용)
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // 학습 분석 AI 챗봇 (Anthropic Claude — 선택, LLM_API_KEY 설정 시 활성)
+    implementation 'com.anthropic:anthropic-java:2.34.0'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
+    // 리포지토리 슬라이스 테스트(@DataJpaTest) 용 인메모리 DB
+    testRuntimeOnly 'com.h2database:h2'
 }
 
 tasks.named('test') {

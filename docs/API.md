@@ -320,6 +320,30 @@ Access Token 재발급
 
 ---
 
+## 과제 (Assignments) — EP-08
+
+| Method | URL | 설명 | 권한 |
+|--------|-----|------|------|
+| GET | /api/subjects/{subjectId}/assignments | 과목별 과제 목록 | TEACHER |
+| POST | /api/subjects/{subjectId}/assignments | 과제 등록 | TEACHER |
+| GET | /api/assignments/{assignmentId}/submissions | 제출 목록 | TEACHER |
+| POST | /api/assignments/{assignmentId}/submissions | 제출 상태 기록(upsert: `SUBMITTED`/`LATE`/`NOT_SUBMITTED`) | TEACHER |
+
+## 학습 분석 (Analytics) — EP-08
+
+| Method | URL | 설명 | 권한 |
+|--------|-----|------|------|
+| GET | /api/analytics/overview | 분석 DB 적재 학생·과목 개요 | TEACHER/ADMIN |
+| GET | /api/analytics/students/{id}/summary | 학생별 성적 추이·출석률·제출률·피드백 분포 | TEACHER/ADMIN |
+| GET | /api/analytics/subjects/{id}/distribution | 과목별 평균·점수 분포·제출률 | TEACHER/ADMIN |
+| POST | /api/analytics/etl/run | 배치 ETL 수동 실행 | TEACHER/ADMIN |
+| GET | /api/analytics/chat/status | AI 챗봇 활성 여부(LLM_API_KEY) | TEACHER/ADMIN |
+| POST | /api/analytics/chat | 분석 데이터 기반 AI 질의(선택) | TEACHER/ADMIN |
+
+> 분석 데이터는 별도 DB(`student_analytics`)에 적재된다. 조회 전 `POST /api/analytics/etl/run`으로 적재하거나, 스케줄러(기본 매시 정각)·CDC(가점)로 갱신한다.
+
+---
+
 ## HTTP 상태 코드
 
 | 코드 | 의미 |

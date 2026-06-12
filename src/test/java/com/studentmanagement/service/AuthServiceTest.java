@@ -15,8 +15,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.lang.reflect.Field;
@@ -32,7 +30,7 @@ class AuthServiceTest {
     @Mock UserRepository userRepository;
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtUtil jwtUtil;
-    @Mock JavaMailSender mailSender;
+    @Mock EmailService emailService;
 
     @InjectMocks AuthService authService;
 
@@ -202,15 +200,17 @@ class AuthServiceTest {
     // ── sendResetPasswordEmail ────────────────────────────────────────
 
     @Test
-    void sendResetPasswordEmail_whenEmailExists_sendsMailAndUpdatesPassword() {
+    void sendResetPasswordEmail_whenEmailExists_savesPasswordThenSendsMailAsync() {
         given(userRepository.findByEmail("teacher@test.com")).willReturn(Optional.of(teacher));
         given(passwordEncoder.encode(anyString())).willReturn("temp_encoded");
         given(userRepository.save(any())).willReturn(teacher);
 
         authService.sendResetPasswordEmail("teacher@test.com");
 
-        verify(mailSender).send(any(SimpleMailMessage.class));
-        verify(passwordEncoder).encode(anyString());
+        // DB 저장이 메일 발송보다 먼저 호출되어야 한다 (저장 실패 시 메일 누출 방지)
+        var inOrder = inOrder(userRepository, emailService);
+        inOrder.verify(userRepository).save(any());
+        inOrder.verify(emailService).sendResetPasswordEmail(eq("teacher@test.com"), anyString());
     }
 
     @Test
@@ -232,6 +232,10 @@ class AuthServiceTest {
         authService.sendResetPasswordEmail("teacher@test.com");
 
         assertThat(pwCaptor.getValue()).hasSize(8);
+        // 메일에도 동일한 길이의 임시 비밀번호가 전달되는지 확인
+        ArgumentCaptor<String> mailPwCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailService).sendResetPasswordEmail(eq("teacher@test.com"), mailPwCaptor.capture());
+        assertThat(mailPwCaptor.getValue()).hasSize(8);
     }
 
     // ── helpers ───────────────────────────────────────────────────────

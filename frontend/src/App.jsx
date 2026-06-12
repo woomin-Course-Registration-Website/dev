@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore'
 import Layout from './components/common/Layout'
+import Toaster from './components/common/Toaster'
 import Login from './pages/Login'
 import Register from './pages/Register'
 
@@ -12,6 +13,7 @@ const GradeManagement = lazy(() => import('./pages/grades/GradeManagement'))
 const FeedbackManagement = lazy(() => import('./pages/feedback/FeedbackManagement'))
 const CounselingManagement = lazy(() => import('./pages/counseling/CounselingManagement'))
 const Reports = lazy(() => import('./pages/reports/Reports'))
+const Analytics = lazy(() => import('./pages/analytics/Analytics'))
 const Settings = lazy(() => import('./pages/settings/Settings'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
@@ -26,6 +28,7 @@ function PrivateRoute({ children, roles }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster />
       <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -46,6 +49,14 @@ export default function App() {
             <Route path="feedback" element={<FeedbackManagement />} />
             <Route path="counseling" element={<CounselingManagement />} />
             <Route path="reports" element={<Reports />} />
+            <Route
+              path="analytics"
+              element={
+                <PrivateRoute roles={['TEACHER', 'ADMIN']}>
+                  <Analytics />
+                </PrivateRoute>
+              }
+            />
             <Route path="settings" element={<Settings />} />
             <Route
               path="admin"

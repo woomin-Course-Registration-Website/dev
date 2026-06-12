@@ -10,8 +10,6 @@ import com.studentmanagement.exception.ResourceNotFoundException;
 import com.studentmanagement.exception.UnauthorizedException;
 import com.studentmanagement.repository.UserRepository;
 import com.studentmanagement.util.JwtUtil;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -29,14 +27,14 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final JavaMailSender mailSender;
+    private final EmailService emailService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       JwtUtil jwtUtil, JavaMailSender mailSender) {
+                       JwtUtil jwtUtil, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
-        this.mailSender = mailSender;
+        this.emailService = emailService;
     }
 
     /**
@@ -140,13 +138,11 @@ public class AuthService {
 
         String tempPassword = UUID.randomUUID().toString().substring(0, 8);
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email);
-        message.setSubject("[학생관리시스템] 임시 비밀번호 안내");
-        message.setText("임시 비밀번호: " + tempPassword + "\n로그인 후 비밀번호를 변경해주세요.");
-        mailSender.send(message);
-
+        // 1) DB에 임시 비밀번호 저장 (트랜잭션 내)
+        // 2) 메일은 비동기로 발송 — SMTP 응답을 기다리지 않고 즉시 반환
+        // (저장 실패 시 메일이 발송되지 않으므로 비밀번호/메일 불일치 방지)
         user.setPassword(passwordEncoder.encode(tempPassword));
         userRepository.save(user);
+        emailService.sendResetPasswordEmail(email, tempPassword);
     }
 }

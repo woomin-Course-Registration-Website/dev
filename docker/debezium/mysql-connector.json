@@ -1,0 +1,23 @@
+{
+  "name": "student-mysql-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "tasks.max": "1",
+    "database.hostname": "db",
+    "database.port": "3306",
+    "database.user": "root",
+    "database.password": "rootpassword",
+    "database.server.id": "184054",
+    "topic.prefix": "dbserver1",
+    "database.include.list": "student_management",
+    "table.include.list": "student_management.grades,student_management.student_records,student_management.feedbacks,student_management.submissions,student_management.students,student_management.subjects",
+    "schema.history.internal.kafka.bootstrap.servers": "kafka:9092",
+    "schema.history.internal.kafka.topic": "schema-changes.student_management",
+    "include.schema.changes": "false",
+    "decimal.handling.mode": "double",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false"
+  }
+}

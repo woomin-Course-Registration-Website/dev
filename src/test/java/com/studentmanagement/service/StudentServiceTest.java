@@ -43,6 +43,24 @@ class StudentServiceTest {
     // ── getAll ────────────────────────────────────────────────────────
 
     @Test
+    void getPage_capsAndAppliesDefaultSort() {
+        org.springframework.data.domain.Pageable input = org.springframework.data.domain.PageRequest.of(0, 5);
+        org.springframework.data.domain.Page<Student> page = new org.springframework.data.domain.PageImpl<>(
+                List.of(student), input, 1);
+        given(studentRepository.findByFiltersPaged(eq(1), isNull(), isNull(), any()))
+                .willReturn(page);
+
+        com.studentmanagement.dto.PagedResponse<StudentResponse> result =
+                studentService.getPage(1, null, null, input);
+
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getPage()).isZero();
+        assertThat(result.isFirst()).isTrue();
+        assertThat(result.isLast()).isTrue();
+    }
+
+    @Test
     void getAll_returnsMappedResponses() {
         given(studentRepository.findByFilters(null, null, null)).willReturn(List.of(student));
 

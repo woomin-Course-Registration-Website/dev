@@ -91,7 +91,13 @@ export default function StudentDetail() {
     } else if (tab === '학생부') {
       getRecord(id).then((r) => {
         setRecord(r)
-        const att = r.attendance ? JSON.parse(r.attendance) : {}
+        // attendance는 서버에서 JSON 문자열로 저장되며 형식이 깨졌을 수 있어 안전하게 파싱
+        let att = {}
+        if (r.attendance) {
+          try { att = JSON.parse(r.attendance) }
+          catch { att = {} }
+        }
+        // 특기사항(specialNotes)은 US-03-03에서 다항목(StudentRecordNote)으로 분리 → noteForm에서 제외
         setNoteForm({ present: att.present ?? '', absent: att.absent ?? '', late: att.late ?? '' })
       }).catch(() => setRecord(null))
       listRecordNotes(id).then(setNotes).catch(() => setNotes([]))

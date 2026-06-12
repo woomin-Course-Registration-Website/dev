@@ -47,12 +47,6 @@ provider "aws" {
   }
 }
 
-# CloudFront ACM 인증서는 반드시 us-east-1에서 발급
-provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
-}
-
 # EKS 생성 후 연결 — 최초 apply 시 아래 순서로 실행:
 # 1) terraform apply -target=module.eks
 # 2) terraform apply

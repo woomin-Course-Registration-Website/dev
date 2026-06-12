@@ -8,33 +8,33 @@ output "ecr_backend_url" {
   value       = aws_ecr_repository.backend.repository_url
 }
 
-output "ecr_frontend_url" {
-  description = "프론트엔드 ECR URL"
-  value       = aws_ecr_repository.frontend.repository_url
-}
-
 output "rds_endpoint" {
   description = "RDS 엔드포인트 (Secrets Manager에 자동 저장됨)"
   value       = module.rds.db_instance_endpoint
   sensitive   = true
 }
 
-output "cloudfront_domain" {
-  description = "CloudFront 배포 도메인"
-  value       = aws_cloudfront_distribution.main.domain_name
-}
 
 output "github_actions_role_arn" {
   description = "GitHub Secrets > AWS_ROLE_ARN 에 입력"
   value       = aws_iam_role.github_actions.arn
 }
 
-output "acm_cert_arn" {
-  description = "k8s/ingress.yaml annotation에 입력"
-  value       = aws_acm_certificate_validation.main.certificate_arn
+output "amplify_app_id" {
+  description = "Amplify 앱 ID (콘솔 링크용)"
+  value       = aws_amplify_app.main.id
 }
 
-output "reports_bucket" {
-  description = "리포트 파일 저장 S3 버킷명"
-  value       = aws_s3_bucket.reports.bucket
+output "amplify_branch_urls" {
+  description = "환경별 SPA URL (Amplify 기본 도메인)"
+  value = {
+    for k, v in local.amplify_branches : k => "https://${v.branch}.${aws_amplify_app.main.default_domain}"
+  }
+}
+
+output "apigateway_endpoints" {
+  description = "환경별 API Gateway 기본 invoke URL (frontend VITE_API_BASE_URL에 /api 붙여서 사용)"
+  value = {
+    for k, v in aws_apigatewayv2_api.env : k => v.api_endpoint
+  }
 }
