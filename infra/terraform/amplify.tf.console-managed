@@ -39,10 +39,16 @@ resource "aws_amplify_app" "main" {
 }
 
 locals {
-  amplify_branches = {
-    dev     = { branch = "develop" }
+  # 실제 트렁크는 main — 백엔드 dev도 cd.yml이 main push로 빌드하므로 dev 프론트도 main을 추적.
+  # develop은 stale(미사용). staging/prod는 승격 시점에 정함.
+  amplify_branches_all = {
+    dev     = { branch = "main" }
     staging = { branch = "staging" }
     prod    = { branch = "main" }
+  }
+  # ALB가 존재하는 환경(var.live_envs)에 대해서만 브랜치 생성 — API Gateway endpoint 의존.
+  amplify_branches = {
+    for k, v in local.amplify_branches_all : k => v if contains(var.live_envs, k)
   }
 }
 

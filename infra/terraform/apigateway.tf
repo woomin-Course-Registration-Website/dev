@@ -1,10 +1,15 @@
-# ── API Gateway HTTP API × 3 (환경별 별도) ─────────────────────────────────
+# ── API Gateway HTTP API (환경별 별도) ─────────────────────────────────────
 
 locals {
-  apigw_envs = {
+  apigw_envs_all = {
     dev     = { ns = "student-mgmt-dev" }
     staging = { ns = "student-mgmt-staging" }
     prod    = { ns = "student-mgmt-prod" }
+  }
+  # ALB가 존재하는 환경(var.live_envs)에 대해서만 API Gateway 생성.
+  # data.aws_lb는 ALB가 있어야 resolve되므로 dev만 우선 프로비저닝.
+  apigw_envs = {
+    for k, v in local.apigw_envs_all : k => v if contains(var.live_envs, k)
   }
 }
 
@@ -31,7 +36,7 @@ resource "aws_security_group" "vpc_link" {
   for_each = local.apigw_envs
 
   name        = "${var.project}-vpclink-${each.key}-sg"
-  description = "API Gateway VPC Link → ALB (${each.key})"
+  description = "API Gateway VPC Link to ALB (${each.key})"
   vpc_id      = module.vpc.vpc_id
 
   egress {
@@ -57,11 +62,10 @@ resource "aws_apigatewayv2_api" "env" {
   name          = "${var.project}-${each.key}"
   protocol_type = "HTTP"
 
-  # CORS: 환경별 Amplify 기본 도메인(<branch>.<app-id>.amplifyapp.com)에서만 허용.
+  # CORS: Amplify가 콘솔 GitHub App으로 연결되어 Terraform이 도메인을 모르므로
+  # var.frontend_origins(기본 "*")로 둠. Amplify URL 확정 후 tfvars로 좁힌다.
   cors_configuration {
-    allow_origins = [
-      "https://${local.amplify_branches[each.key].branch}.${aws_amplify_app.main.default_domain}"
-    ]
+    allow_origins = var.frontend_origins
     allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers = ["Authorization", "Content-Type"]
     max_age       = 600

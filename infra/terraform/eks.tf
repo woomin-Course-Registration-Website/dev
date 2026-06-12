@@ -160,6 +160,12 @@ resource "helm_release" "cluster_autoscaler" {
     name  = "rbac.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = module.cluster_autoscaler_irsa.iam_role_arn
   }
+  # SA 이름을 IRSA 신뢰 정책(kube-system:cluster-autoscaler)과 일치시킴.
+  # 미지정 시 차트 기본값 cluster-autoscaler-aws-cluster-autoscaler 가 되어 AssumeRole 실패.
+  set {
+    name  = "rbac.serviceAccount.name"
+    value = "cluster-autoscaler"
+  }
 
   depends_on = [module.eks]
 }
@@ -251,6 +257,28 @@ resource "helm_release" "kube_prometheus_stack" {
   depends_on = [module.eks]
 }
 
+# ── 기본 StorageClass (gp3, CSI) ─────────────────────────────────────────────
+# EKS가 만든 in-tree gp2(kubernetes.io/aws-ebs)는 1.30에서 동작 안 함.
+# CSI(ebs.csi.aws.com) 기반 gp3를 default로 지정 — PVC(예: Loki)가 이걸 사용.
+resource "kubernetes_storage_class_v1" "gp3" {
+  metadata {
+    name = "gp3"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+  storage_provisioner    = "ebs.csi.aws.com"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  allow_volume_expansion = true
+  reclaim_policy         = "Delete"
+  parameters = {
+    type      = "gp3"
+    encrypted = "true"
+  }
+
+  depends_on = [module.eks]
+}
+
 # ── Loki + Promtail (컨테이너 로그 집계) ─────────────────────────────────────
 
 resource "helm_release" "loki" {
@@ -304,7 +332,7 @@ resource "helm_release" "loki" {
     resultsCache = { enabled = false }
   })]
 
-  depends_on = [module.eks]
+  depends_on = [module.eks, kubernetes_storage_class_v1.gp3]
 }
 
 resource "helm_release" "promtail" {
@@ -313,6 +341,10 @@ resource "helm_release" "promtail" {
   chart      = "promtail"
   namespace  = "monitoring"
   version    = "6.16.6"
+
+  # DaemonSet 로그 수집기 — 용량 제약 노드에선 일부 Pod가 Pending일 수 있으므로
+  # helm이 전체 롤아웃 완료를 기다리지 않게 함(설치 후 즉시 반환).
+  wait = false
 
   values = [yamlencode({
     config = {

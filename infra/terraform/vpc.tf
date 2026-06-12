@@ -56,7 +56,7 @@ resource "aws_db_subnet_group" "main" {
 # RDS 보안 그룹: EKS 워커 노드에서만 3306 허용
 resource "aws_security_group" "rds" {
   name        = "${var.project}-rds-sg"
-  description = "RDS MySQL — EKS 노드 전용 접근"
+  description = "RDS MySQL access from EKS nodes only"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
