@@ -8,6 +8,7 @@ import com.studentmanagement.exception.ResourceNotFoundException;
 import com.studentmanagement.fixture.SecurityTestHelper;
 import com.studentmanagement.fixture.TestFixtures;
 import com.studentmanagement.service.CounselingService;
+import com.studentmanagement.service.StudentAccessService;
 import com.studentmanagement.service.StudentService;
 import com.studentmanagement.util.JwtUtil;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ class StudentControllerTest {
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @MockBean  StudentService studentService;
+    @MockBean  StudentAccessService studentAccessService;
     @MockBean  CounselingService counselingService;
     @MockBean  JwtUtil jwtUtil;
 

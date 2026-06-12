@@ -13,14 +13,15 @@ variable "project" {
   default = "student-mgmt"
 }
 
-variable "domain_name" {
-  description = "서비스 도메인 (e.g. example.com) — Route53에 호스팅 존 사전 등록 필요"
-  type        = string
-}
-
 variable "eks_node_instance_type" {
   type    = string
   default = "t3.medium"
+}
+
+variable "cluster_endpoint_public_access_cidrs" {
+  description = "EKS 퍼블릭 API 엔드포인트 접근 허용 CIDR. 운영 시 사무실/VPN IP로 좁히는 것을 권장."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }
 
 variable "eks_node_desired" {
@@ -64,4 +65,22 @@ variable "github_org" {
 variable "github_repo" {
   type    = string
   default = "dev"
+}
+
+variable "argocd_chart_version" {
+  description = "argo-cd helm 차트 버전"
+  type        = string
+  default     = "7.7.7"
+}
+
+variable "sealed_secrets_chart_version" {
+  description = "sealed-secrets helm 차트 버전"
+  type        = string
+  default     = "2.16.1"
+}
+
+variable "amplify_github_token" {
+  description = "Amplify가 GitHub repo를 watch하기 위한 PAT (repo, admin:repo_hook 권한)"
+  type        = string
+  sensitive   = true
 }

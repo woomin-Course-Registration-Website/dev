@@ -1,0 +1,4 @@
+apiVersion: v2
+name: argocd-bootstrap
+description: Argo CD AppProject/ApplicationSet bootstrap for student-mgmt
+version: 0.1.0

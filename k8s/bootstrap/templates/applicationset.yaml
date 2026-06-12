@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: student-mgmt
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+{{- range .Values.environments }}
+          - env: {{ . }}
+{{- end }}
+  template:
+    metadata:
+      name: 'student-mgmt-{{`{{.env}}`}}'
+    spec:
+      project: student-mgmt
+      source:
+        repoURL: {{ .Values.repoURL | quote }}
+        targetRevision: {{ .Values.targetRevision }}
+        path: 'k8s/overlays/{{`{{.env}}`}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'student-mgmt-{{`{{.env}}`}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

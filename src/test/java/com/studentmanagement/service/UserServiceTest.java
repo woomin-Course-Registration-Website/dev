@@ -1,6 +1,7 @@
 package com.studentmanagement.service;
 
 import com.studentmanagement.domain.User;
+import com.studentmanagement.dto.user.UpdateUserRequest;
 import com.studentmanagement.dto.user.UserRequest;
 import com.studentmanagement.dto.user.UserResponse;
 import com.studentmanagement.exception.ResourceNotFoundException;
@@ -122,7 +123,7 @@ class UserServiceTest {
     void update_whenPasswordProvided_encodesAndUpdates() {
         given(userRepository.findById(1L)).willReturn(Optional.of(teacher));
         given(passwordEncoder.encode("new_pw")).willReturn("new_encoded");
-        UserRequest req = userRequest("teacher@test.com", "new_pw", "새이름", User.Role.TEACHER);
+        UpdateUserRequest req = updateUserRequest("new_pw", "새이름", User.Role.TEACHER);
 
         UserResponse result = userService.update(1L, req);
 
@@ -134,7 +135,7 @@ class UserServiceTest {
     @Test
     void update_whenPasswordBlank_doesNotChangePassword() {
         given(userRepository.findById(1L)).willReturn(Optional.of(teacher));
-        UserRequest req = userRequest("teacher@test.com", "", "새이름", User.Role.TEACHER);
+        UpdateUserRequest req = updateUserRequest("", "새이름", User.Role.TEACHER);
 
         userService.update(1L, req);
 
@@ -146,7 +147,7 @@ class UserServiceTest {
     void update_whenUserNotFound_throwsResourceNotFoundException() {
         given(userRepository.findById(999L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.update(999L, userRequest("e@test.com", "pw", "이름", User.Role.TEACHER)))
+        assertThatThrownBy(() -> userService.update(999L, updateUserRequest("pw", "이름", User.Role.TEACHER)))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -173,6 +174,14 @@ class UserServiceTest {
     private UserRequest userRequest(String email, String password, String name, User.Role role) {
         UserRequest r = new UserRequest();
         setField(r, "email", email);
+        setField(r, "password", password);
+        setField(r, "name", name);
+        setField(r, "role", role);
+        return r;
+    }
+
+    private UpdateUserRequest updateUserRequest(String password, String name, User.Role role) {
+        UpdateUserRequest r = new UpdateUserRequest();
         setField(r, "password", password);
         setField(r, "name", name);
         setField(r, "role", role);

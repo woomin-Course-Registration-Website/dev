@@ -144,13 +144,20 @@ SecurityTestHelper.stubAsInvalid(jwtUtil);
 ## CI/CD
 
 - **CI** (`.github/workflows/ci.yml`): `main`/`develop` 브랜치 push/PR 시 실행. 실제 MySQL 컨테이너로 `SPRING_PROFILES_ACTIVE: dev`에서 테스트 → JAR 빌드.
-- **CD** (`.github/workflows/cd.yml`): `main` push 시 Docker Hub에 백엔드 이미지 push → AWS S3에 번들 업로드 → AWS CodeDeploy로 배포. `docker-compose.prod.yml`은 Docker Hub에서 pre-built 이미지를 사용하는 프로덕션 전용 Compose 파일.
+- **백엔드 CD** (`.github/workflows/cd.yml`): `main` push 시(`k8s/**`·`docs/**`·`frontend/**` 제외) OIDC로 AWS 인증 → **ECR**에 backend 이미지 빌드/푸시(불변 태그 `github.sha`) → `kustomize edit set image`로 `k8s/overlays/dev`의 이미지 태그를 갱신·커밋(write-back). **CI에 클러스터 자격증명 없음.**
+- **프론트엔드 CD**: **Amplify Console**이 GitHub webhook으로 자동 빌드/배포(`amplify.yml`). 브랜치별 Amplify 기본 도메인(`https://<branch>.<app-id>.amplifyapp.com`) 사용 — 커스텀 도메인 없음. URL 확인: `terraform output amplify_branch_urls`. GitHub Actions 워크플로우 불필요.
+- **GitOps 배포**: **Argo CD**(EKS `argocd` 네임스페이스)가 git을 watch하여 `k8s/overlays/{env}`를 각 `student-mgmt-{env}` 네임스페이스에 동기화. dev는 자동, staging/prod는 `promote.yml`(`workflow_dispatch`) PR 머지로 승격. Argo CD·ApplicationSet·AppProject는 Terraform `helm_release`(`infra/terraform/eks.tf` + `k8s/bootstrap/` 로컬 차트)로 부트스트랩.
+- **시크릿**: 운영자가 `kubeseal`로 암호화한 `SealedSecret`을 `k8s/overlays/{env}/sealed-secrets/`에 커밋 → Argo가 sync → 클러스터 내 sealed-secrets controller가 복호화하여 Secret 생성 → Pod `envFrom`.
+- **진입 토폴로지**: 브라우저 → Amplify(SPA, public, `*.amplifyapp.com`) / 브라우저 → API Gateway HTTP API(public, 환경별 3개, `*.execute-api.amazonaws.com`) → VPC Link → private ALB → EKS backend. 커스텀 도메인/ACM/Route53 zone 사용 안 함.
+- **인프라**: **Terraform**(`infra/terraform/`)으로 VPC·EKS·RDS·ECR·Amplify·API Gateway·Sealed Secrets controller를 관리. **Kustomize**(`k8s/base` + `k8s/overlays/{dev,staging,prod}`)로 Deployment·Service·HPA·PDB·Ingress·NetworkPolicy·SealedSecret·ServiceMonitor 구성.
 
 ## 상세 문서
 
 - [docs/API.md](docs/API.md) — REST API 전체 명세 (10개 도메인: Auth, Users, Students, Grades, Records, Feedback, Counseling, Notifications, Reports, Subjects)
 - [docs/ERD.md](docs/ERD.md) — DB 스키마 / 엔티티 관계
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 레이어 다이어그램, 패키지 구조
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 백엔드/프론트 코드 레이어·패키지 구조
+- [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) — 런타임 토폴로지·환경 분리·요청/배포 흐름·보안 경계
+- [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) — AWS 리소스 카탈로그·EKS 애드온·IAM/IRSA·Terraform 부트스트랩
 - [docs/DESIGN.md](docs/DESIGN.md) — UI 디자인 시스템
 - [docs/WIREFRAME.md](docs/WIREFRAME.md) — 페이지별 와이어프레임
 - [BACKLOG.md](BACKLOG.md) — 제품 백로그 (6 스프린트, 139 SP)

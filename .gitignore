@@ -56,6 +56,9 @@ cmake-build-*/
 # IntelliJ
 out/
 
+# Eclipse build output
+bin/
+
 # mpeltonen/sbt-idea plugin
 .idea_modules/
 
@@ -201,6 +204,7 @@ infra/terraform/crash.log
 # Gradle build artifacts
 .gradle/
 .gradle-user-home/
+.gradle-sandbox/
 build/
 
 # Frontend artifacts
@@ -234,3 +238,4 @@ pnpm-debug.log*
 .cursor/
 .claude/settings.json
 .claude/settings.local.json
+.claude/worktrees/

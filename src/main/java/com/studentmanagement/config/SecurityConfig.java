@@ -53,8 +53,10 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> {
                 auth.requestMatchers("/api/auth/**", "/api/health").permitAll();
-                // K8s/ALB probe를 위해 Spring Boot Actuator의 health 그룹은 인증 없이 노출
-                auth.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll();
+                // K8s/ALB probe를 위해 Spring Boot Actuator의 health 그룹은 인증 없이 노출.
+                // prometheus: 클러스터 내부 ServiceMonitor가 인증 없이 스크랩
+                // (외부는 API Gateway가 /api/* 만 라우팅하므로 actuator 도달 불가).
+                auth.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll();
                 // /api/dev/** 시드 엔드포인트는 non-prod 프로파일에서만 노출
                 // (DevDataSeederController에도 @Profile("!prod") 적용되어 있으나 defense-in-depth)
                 if (!prodProfile) {

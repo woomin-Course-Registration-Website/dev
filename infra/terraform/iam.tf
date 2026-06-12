@@ -39,18 +39,3 @@ resource "aws_iam_role_policy_attachment" "github_actions_ecr" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
-
-# kubectl 사용을 위한 EKS 클러스터 조회 권한
-resource "aws_iam_role_policy" "github_actions_eks" {
-  name = "${var.project}-github-actions-eks"
-  role = aws_iam_role.github_actions.name
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["eks:DescribeCluster"]
-      Resource = "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.project}-cluster"
-    }]
-  })
-}
