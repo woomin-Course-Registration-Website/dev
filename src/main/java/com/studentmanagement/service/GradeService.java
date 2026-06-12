@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 성적 관리 서비스
@@ -49,14 +51,47 @@ public class GradeService {
     /**
      * 학생 성적 목록 조회
      * STUDENT는 본인, PARENT는 연동된 자녀만 조회 가능합니다.
+     *
+     * 평균(average)과 학기 총점(total)은 결과 그레이드 리스트에서 등장하는
+     * (subjectId, year, semester) / (year, semester) 조합을 한 번에 집계해 N+1 쿼리를 회피합니다.
      */
     public List<GradeResponse> getGrades(Long studentId, Integer year, Integer semester, Long subjectId,
                                          String requesterEmail, User.Role role) {
         studentAccessService.check(studentId, requesterEmail, role);
-        return gradeRepository.findByStudentAndFilters(studentId, year, semester, subjectId)
+        List<Grade> grades = gradeRepository.findByStudentAndFilters(studentId, year, semester, subjectId);
+        if (grades.isEmpty()) return List.of();
+
+        List<Long> subjectIds = grades.stream().map(g -> g.getSubject().getId()).distinct().toList();
+        List<Integer> years = grades.stream().map(Grade::getYear).distinct().toList();
+        List<Integer> semesters = grades.stream().map(Grade::getSemester).distinct().toList();
+
+        Map<String, Double> averageByKey = gradeRepository
+                .findAverageScoresGrouped(subjectIds, years, semesters)
                 .stream()
-                .map(this::toResponse)
+                .collect(Collectors.toMap(
+                        row -> averageKey((Long) row[0], (Integer) row[1], (Integer) row[2]),
+                        row -> row[3] == null ? null : ((Number) row[3]).doubleValue()));
+
+        Map<String, Double> totalByKey = gradeRepository
+                .findTotalScoresForStudent(studentId, years, semesters)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> totalKey((Integer) row[0], (Integer) row[1]),
+                        row -> row[2] == null ? null : ((Number) row[2]).doubleValue()));
+
+        return grades.stream()
+                .map(g -> new GradeResponse(g,
+                        averageByKey.get(averageKey(g.getSubject().getId(), g.getYear(), g.getSemester())),
+                        totalByKey.get(totalKey(g.getYear(), g.getSemester()))))
                 .toList();
+    }
+
+    private static String averageKey(Long subjectId, int year, int semester) {
+        return subjectId + ":" + year + ":" + semester;
+    }
+
+    private static String totalKey(int year, int semester) {
+        return year + ":" + semester;
     }
 
     /**
@@ -114,22 +149,31 @@ public class GradeService {
     /**
      * 과목별 성적 입력 현황 (대시보드용)
      * 각 과목에 대해 해당 학급 학생 중 성적이 입력된 수와 전체 학생 수를 반환합니다.
+     *
+     * 최적화:
+     * - 학생 ID만 fetch해 Student 엔티티를 메모리에 적재하지 않는다.
+     * - 과목별 count는 GROUP BY 한 번으로 집계해 N+1을 회피한다.
      */
     public List<GradeStatsItem> getStats(Integer grade, Integer classNum, Integer year, Integer semester) {
         int y = (year     != null) ? year     : java.time.LocalDate.now().getYear();
         int s = (semester != null) ? semester : 1;
 
-        List<Student> students = studentRepository.findByFilters(grade, classNum, null);
-        List<Long> studentIds  = students.stream().map(Student::getId).toList();
-        long studentCount      = studentIds.size();
+        List<Long> studentIds = studentRepository.findIdsByFilters(grade, classNum);
+        long studentCount = studentIds.size();
+
+        Map<Long, Long> countBySubjectId = studentIds.isEmpty()
+                ? Map.of()
+                : gradeRepository.countByYearSemesterGroupedBySubject(y, s, studentIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> ((Number) row[1]).longValue()));
 
         return subjectRepository.findAll().stream()
-                .map(subject -> {
-                    long count = studentIds.isEmpty() ? 0
-                            : gradeRepository.countBySubjectYearSemesterAndStudents(
-                                subject.getId(), y, s, studentIds);
-                    return new GradeStatsItem(subject.getName(), count, studentCount);
-                })
+                .map(subject -> new GradeStatsItem(
+                        subject.getName(),
+                        countBySubjectId.getOrDefault(subject.getId(), 0L),
+                        studentCount))
                 .toList();
     }
 

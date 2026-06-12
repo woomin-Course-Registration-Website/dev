@@ -1,11 +1,19 @@
 import client from './client'
 
 /**
- * 학생 목록 조회
+ * 학생 목록 조회 (전체)
  * @param {Object} params - { grade, classNum, keyword }
  */
 export const getStudents = (params = {}) =>
   client.get('/students', { params }).then((r) => r.data.data)
+
+/**
+ * 학생 목록 페이지네이션 조회
+ * @param {Object} params - { grade, classNum, keyword, page, size, sort }
+ * @returns PagedResponse { content, page, size, totalElements, totalPages, first, last }
+ */
+export const getStudentsPaged = (params = {}) =>
+  client.get('/students/page', { params }).then((r) => r.data.data)
 
 /** 학생 상세 조회 */
 export const getStudent = (id) =>

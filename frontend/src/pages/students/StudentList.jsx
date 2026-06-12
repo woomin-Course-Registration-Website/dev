@@ -1,13 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getStudents } from '../../api/students'
+import { getStudentsPaged } from '../../api/students'
 
-function gradeLabel(avg) {
-  if (avg >= 90) return { label: 'A', cls: 'badge-green'  }
-  if (avg >= 80) return { label: 'B', cls: 'badge-blue'   }
-  if (avg >= 70) return { label: 'C', cls: 'badge-amber'  }
-  return               { label: 'D', cls: 'badge-red'    }
-}
+const PAGE_SIZE = 20
 
 export default function StudentList() {
   const navigate = useNavigate()
@@ -21,22 +16,33 @@ export default function StudentList() {
   const [sortKey, setSortKey]         = useState('studentNum')
   const [sortAsc, setSortAsc]         = useState(true)
 
-  // 필터가 바뀔 때마다 API 호출
+  // 페이지 상태
+  const [page, setPage]               = useState(0)
+  const [totalPages, setTotalPages]   = useState(0)
+  const [totalElements, setTotalEls]  = useState(0)
+
   const fetchStudents = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const params = {}
+      const params = { page, size: PAGE_SIZE, sort: `${sortKey},${sortAsc ? 'asc' : 'desc'}` }
       if (gradeFilter) params.grade = gradeFilter
       if (classFilter) params.classNum = classFilter
       if (search)      params.keyword = search
-      const data = await getStudents(params)
-      setStudents(data ?? [])
+      const data = await getStudentsPaged(params)
+      setStudents(data?.content ?? [])
+      setTotalPages(data?.totalPages ?? 0)
+      setTotalEls(data?.totalElements ?? 0)
     } catch {
       setError('학생 목록을 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
+  }, [gradeFilter, classFilter, search, page, sortKey, sortAsc])
+
+  // 필터 변경 시 첫 페이지로 리셋
+  useEffect(() => {
+    setPage(0)
   }, [gradeFilter, classFilter, search])
 
   useEffect(() => {
@@ -49,12 +55,6 @@ export default function StudentList() {
     else { setSortKey(key); setSortAsc(true) }
   }
 
-  const sorted = [...students].sort((a, b) => {
-    const v = sortAsc ? 1 : -1
-    if (sortKey === 'name') return a.name.localeCompare(b.name) * v
-    return (a.studentNum - b.studentNum) * v
-  })
-
   const SortIcon = ({ col }) => (
     <span className="ml-1 inline-block">
       {sortKey === col ? (sortAsc ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
@@ -65,12 +65,13 @@ export default function StudentList() {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">학생 목록</h1>
-        <span className="text-sm text-gray-400">총 {sorted.length}명</span>
+        <span className="text-sm text-gray-400">총 {totalElements}명</span>
       </div>
 
       {/* 필터 바 */}
-      <div className="card p-4 flex flex-wrap gap-3 items-center">
+      <div className="card p-4 flex flex-wrap gap-3 items-center" role="search" aria-label="학생 검색 필터">
         <select
+          aria-label="학년 필터"
           value={gradeFilter}
           onChange={(e) => setGradeFilter(e.target.value)}
           className="input w-28 h-9 py-1.5"
@@ -81,6 +82,7 @@ export default function StudentList() {
           <option value="3">3학년</option>
         </select>
         <select
+          aria-label="반 필터"
           value={classFilter}
           onChange={(e) => setClassFilter(e.target.value)}
           className="input w-24 h-9 py-1.5"
@@ -89,10 +91,11 @@ export default function StudentList() {
           {[1,2,3,4,5,6].map((c) => <option key={c} value={c}>{c}반</option>)}
         </select>
         <div className="relative flex-1 min-w-48">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <svg aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
           <input
+            aria-label="학생 이름 검색"
             placeholder="학생 이름 검색"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -127,22 +130,22 @@ export default function StudentList() {
             {loading ? (
               <tr>
                 <td colSpan={6} className="table-cell text-center text-gray-400 py-12">
-                  <svg className="w-6 h-6 animate-spin mx-auto text-primary-500" fill="none" viewBox="0 0 24 24">
+                  <svg aria-label="로딩 중" className="w-6 h-6 animate-spin mx-auto text-primary-500" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 </td>
               </tr>
-            ) : sorted.length === 0 ? (
+            ) : students.length === 0 ? (
               <tr>
                 <td colSpan={6} className="table-cell text-center text-gray-400 py-12">
                   {search || gradeFilter || classFilter ? '검색 결과가 없습니다.' : '등록된 학생이 없습니다.'}
                 </td>
               </tr>
             ) : (
-              sorted.map((s, i) => (
+              students.map((s, i) => (
                 <tr key={s.id} className="table-row">
-                  <td className="table-cell text-center text-gray-400 font-mono text-xs">{i + 1}</td>
+                  <td className="table-cell text-center text-gray-400 font-mono text-xs">{page * PAGE_SIZE + i + 1}</td>
                   <td className="table-cell">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
@@ -168,6 +171,33 @@ export default function StudentList() {
           </tbody>
         </table>
       </div>
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <nav aria-label="페이지 네비게이션" className="flex items-center justify-center gap-2 pt-2">
+          <button
+            type="button"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            className="btn-sm btn-ghost px-3 disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="이전 페이지"
+          >
+            이전
+          </button>
+          <span className="text-sm text-gray-600" aria-live="polite">
+            {page + 1} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            className="btn-sm btn-ghost px-3 disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="다음 페이지"
+          >
+            다음
+          </button>
+        </nav>
+      )}
     </div>
   )
 }
