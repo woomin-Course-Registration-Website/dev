@@ -70,6 +70,20 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
                                                @Param("semester") int semester,
                                                @Param("studentIds") List<Long> studentIds);
 
+    /** 반/과목별 성적 일괄 조회 (성적 입력 화면). grade/classNum/year/semester는 null이면 무시. */
+    @Query("SELECT g FROM Grade g JOIN FETCH g.student JOIN FETCH g.subject " +
+           "WHERE g.subject.id = :subjectId " +
+           "AND (:grade IS NULL OR g.student.grade = :grade) " +
+           "AND (:classNum IS NULL OR g.student.classNum = :classNum) " +
+           "AND (:year IS NULL OR g.year = :year) " +
+           "AND (:semester IS NULL OR g.semester = :semester) " +
+           "ORDER BY g.student.studentNum ASC")
+    List<Grade> findByClassAndSubject(@Param("subjectId") Long subjectId,
+                                      @Param("grade") Integer grade,
+                                      @Param("classNum") Integer classNum,
+                                      @Param("year") Integer year,
+                                      @Param("semester") Integer semester);
+
     /**
      * 학생 ID 집합·연도·학기 기준으로 과목별 성적 입력 수를 한 번에 집계.
      * 결과: [subjectId, count]. 데이터가 없는 과목은 결과에 포함되지 않으므로

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getStudents } from '../../api/students'
 import { getCounselings, createCounseling, updateCounseling, deleteCounseling } from '../../api/counselings'
+import { getTeachers } from '../../api/users'
 
 // 백엔드 enum ↔ 한국어 변환
-const SCOPE_MAP     = { ALL: '전체공개', PRIVATE: '비공개' }
-const SCOPE_REVERSE = { '전체공개': 'ALL', '비공개': 'PRIVATE' }
+const SCOPE_MAP     = { ALL: '전체공개', SELECTED: '특정 교사', PRIVATE: '비공개' }
+const SCOPE_REVERSE = { '전체공개': 'ALL', '특정 교사': 'SELECTED', '비공개': 'PRIVATE' }
 
-const EMPTY_FORM = { studentId: '', date: '', content: '', nextPlan: '', scope: '전체공개' }
+const EMPTY_FORM = { studentId: '', date: '', content: '', nextPlan: '', scope: '전체공개', sharedTeacherIds: [] }
 
 export default function CounselingManagement() {
   const [students,   setStudents]   = useState([])
@@ -20,28 +21,41 @@ export default function CounselingManagement() {
   const [form,       setForm]       = useState(EMPTY_FORM)
   const [saving,     setSaving]     = useState(false)
   const [deleteId,   setDeleteId]   = useState(null)
+  const [teachers,      setTeachers]      = useState([])
+  const [teacherFilter, setTeacherFilter] = useState('')
+  const [fromDate,      setFromDate]      = useState('')
+  const [toDate,        setToDate]        = useState('')
 
   // 학생 목록 로드
   useEffect(() => {
     getStudents().then((data) => setStudents(data || [])).catch(() => {})
   }, [])
 
-  // 상담 목록 로드
+  // 교사 목록 로드 (필터용)
+  useEffect(() => {
+    getTeachers().then((data) => setTeachers(data || [])).catch(() => setTeachers([]))
+  }, [])
+
+  // 상담 목록 로드 (교사/기간 필터는 서버에 전달)
   const loadCounselings = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getCounselings()
+      const params = {}
+      if (teacherFilter) params.teacherId = teacherFilter
+      if (fromDate)      params.from = fromDate
+      if (toDate)        params.to = toDate
+      const data = await getCounselings(params)
       setList(data || [])
     } catch {
       setList([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [teacherFilter, fromDate, toDate])
 
   useEffect(() => { loadCounselings() }, [loadCounselings])
 
-  // 필터링 & 정렬
+  // 학생 이름 검색은 클라이언트에서 추가 필터
   const filtered = list
     .filter((c) => {
       const name = c.studentName || ''
@@ -72,6 +86,7 @@ export default function CounselingManagement() {
       content:   c.content,
       nextPlan:  c.nextPlan || '',
       scope:     SCOPE_MAP[c.shareScope] || '전체공개',
+      sharedTeacherIds: c.sharedTeacherIds || [],
     })
     setModal(true)
   }
@@ -80,12 +95,14 @@ export default function CounselingManagement() {
     if (!form.studentId || !form.date || !form.content) return
     setSaving(true)
     try {
+      const scope = SCOPE_REVERSE[form.scope] || 'ALL'
       const body = {
         studentId:  Number(form.studentId),
         date:       form.date,
         content:    form.content,
         nextPlan:   form.nextPlan || null,
-        shareScope: SCOPE_REVERSE[form.scope] || 'ALL',
+        shareScope: scope,
+        sharedTeacherIds: scope === 'SELECTED' ? form.sharedTeacherIds.map(Number) : [],
       }
       if (editTarget) {
         await updateCounseling(editTarget.id, body)
@@ -126,7 +143,7 @@ export default function CounselingManagement() {
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
           {['list', 'calendar'].map((v) => (
             <button key={v} onClick={() => setView(v)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${view === v ? 'bg-white text-gray-900 shadow-card' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${view === v ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >{v === 'list' ? '목록' : '캘린더'}</button>
           ))}
         </div>
@@ -139,6 +156,13 @@ export default function CounselingManagement() {
           </svg>
           <input placeholder="학생 이름 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="input pl-9 h-9 py-1.5" />
         </div>
+        <select value={teacherFilter} onChange={(e) => setTeacherFilter(e.target.value)} className="input w-32 h-9 py-1.5">
+          <option value="">전체 교사</option>
+          {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input w-36 h-9 py-1.5" title="시작일" />
+        <span className="text-gray-300">~</span>
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input w-36 h-9 py-1.5" title="종료일" />
         <span className="text-sm text-gray-400">총 {filtered.length}건</span>
       </div>
 
@@ -157,10 +181,10 @@ export default function CounselingManagement() {
               const dateStr = `${month}-${String(day).padStart(2, '0')}`
               const entries = calDates.entries.filter((c) => c.date === dateStr)
               return (
-                <div key={day} className={`min-h-[72px] p-1.5 rounded-lg border text-xs ${entries.length ? 'border-primary-200 bg-primary-50' : 'border-transparent'}`}>
-                  <span className={`font-medium ${entries.length ? 'text-primary-700' : 'text-gray-600'}`}>{day}</span>
+                <div key={day} className={`min-h-[72px] p-1.5 rounded-lg border text-xs ${entries.length ? 'border-brand-200 bg-brand-50' : 'border-transparent'}`}>
+                  <span className={`font-medium ${entries.length ? 'text-brand-700' : 'text-gray-600'}`}>{day}</span>
                   {entries.map((e) => (
-                    <div key={e.id} className="mt-1 bg-primary-600 text-white rounded px-1 py-0.5 truncate leading-tight">
+                    <div key={e.id} className="mt-1 bg-brand-600 text-white rounded px-1 py-0.5 truncate leading-tight">
                       {e.studentName}
                     </div>
                   ))}
@@ -184,7 +208,7 @@ export default function CounselingManagement() {
               <div key={c.id} className="card p-5">
                 <div className="flex items-start justify-between gap-3 mb-2.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
+                    <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold">
                       {(c.studentName || '?')[0]}
                     </div>
                     <span className="font-semibold text-gray-900 text-sm">{c.studentName}</span>
@@ -199,9 +223,9 @@ export default function CounselingManagement() {
                 </div>
                 <p className="text-sm text-gray-700 leading-relaxed mb-3">{c.content}</p>
                 {c.nextPlan && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">
-                    <p className="text-xs font-medium text-blue-700 mb-0.5">다음 계획</p>
-                    <p className="text-sm text-blue-800">{c.nextPlan}</p>
+                  <div className="bg-brand-50 border border-brand-100 rounded-lg px-4 py-2.5">
+                    <p className="text-xs font-medium text-brand-700 mb-0.5">다음 계획</p>
+                    <p className="text-sm text-brand-800">{c.nextPlan}</p>
                   </div>
                 )}
               </div>
@@ -214,7 +238,7 @@ export default function CounselingManagement() {
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-modal w-full max-w-lg p-6 animate-slide-up">
+          <div className="relative bg-white rounded-2xl shadow-soft-lg w-full max-w-lg p-6 animate-slide-up">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-gray-900">{editTarget ? '상담 수정' : '상담 기록'}</h2>
               <button onClick={() => setModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
@@ -273,19 +297,48 @@ export default function CounselingManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">공유 범위</label>
-                <div className="flex gap-4">
-                  {[{ v: '전체공개', l: '전체공개 (다른 교사 열람 가능)' }, { v: '비공개', l: '비공개 (본인만)' }].map(({ v, l }) => (
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { v: '전체공개', l: '전체공개 (모든 교사)' },
+                    { v: '특정 교사', l: '특정 교사 지정' },
+                    { v: '비공개', l: '비공개 (본인만)' },
+                  ].map(({ v, l }) => (
                     <label key={v} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         checked={form.scope === v}
                         onChange={() => setForm((f) => ({ ...f, scope: v }))}
-                        className="accent-primary-700"
+                        className="accent-brand-700"
                       />
                       <span className="text-sm text-gray-700">{l}</span>
                     </label>
                   ))}
                 </div>
+                {form.scope === '특정 교사' && (
+                  <div className="mt-3 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                    {teachers.length === 0 ? (
+                      <p className="text-xs text-gray-400 px-1 py-2">교사 목록을 불러오는 중...</p>
+                    ) : teachers.map((t) => {
+                      const checked = form.sharedTeacherIds.map(String).includes(String(t.id))
+                      return (
+                        <label key={t.id} className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-gray-50 rounded">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setForm((f) => ({
+                              ...f,
+                              sharedTeacherIds: e.target.checked
+                                ? [...f.sharedTeacherIds, t.id]
+                                : f.sharedTeacherIds.filter((id) => String(id) !== String(t.id)),
+                            }))}
+                            className="accent-brand-700"
+                          />
+                          <span className="text-sm text-gray-700">{t.name}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
@@ -302,7 +355,7 @@ export default function CounselingManagement() {
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteId(null)} />
-          <div className="relative bg-white rounded-2xl shadow-modal w-full max-w-sm p-6 animate-slide-up text-center">
+          <div className="relative bg-white rounded-2xl shadow-soft-lg w-full max-w-sm p-6 animate-slide-up text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
             </div>

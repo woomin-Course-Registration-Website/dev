@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -42,6 +43,23 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private Role role;
+
+    /**
+     * 알림 수신 설정 — 성적/피드백/상담 알림 각각 on/off (기본 수신).
+     * @ColumnDefault("true")로 prod ddl-auto:update 시 기존 행도 수신(true)으로 채워지며,
+     * columnDefinition과 달리 globally_quoted_identifiers(H2 테스트)에서 타입이 깨지지 않는다.
+     */
+    @Column(nullable = false)
+    @ColumnDefault("true")
+    private boolean notifyGrade = true;
+
+    @Column(nullable = false)
+    @ColumnDefault("true")
+    private boolean notifyFeedback = true;
+
+    @Column(nullable = false)
+    @ColumnDefault("true")
+    private boolean notifyCounseling = true;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

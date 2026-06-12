@@ -50,14 +50,21 @@ public class CounselingService {
      * studentId / teacherId / 날짜 범위로 복합 필터링합니다.
      * 파라미터가 null이면 해당 조건은 무시됩니다.
      */
-    public List<CounselingResponse> getAll(Long studentId, Long teacherId, LocalDate from, LocalDate to) {
+    public List<CounselingResponse> getAll(Long studentId, Long teacherId, LocalDate from, LocalDate to,
+                                           String requesterEmail) {
         return counselingRepository.findByFilters(studentId, teacherId, from, to)
-                .stream().map(CounselingResponse::new).toList();
+                .stream()
+                .filter(c -> isVisibleTo(c, requesterEmail))
+                .map(CounselingResponse::new).toList();
     }
 
-    /** 상담 상세 조회 */
-    public CounselingResponse getById(Long id) {
-        return new CounselingResponse(findCounseling(id));
+    /** 상담 상세 조회 (공유범위 기반 접근제어) */
+    public CounselingResponse getById(Long id, String requesterEmail) {
+        Counseling counseling = findCounseling(id);
+        if (!isVisibleTo(counseling, requesterEmail)) {
+            throw new UnauthorizedException("해당 상담 내역을 조회할 권한이 없습니다.");
+        }
+        return new CounselingResponse(counseling);
     }
 
     /**
@@ -89,6 +96,7 @@ public class CounselingService {
         counseling.setContent(request.getContent());
         counseling.setNextPlan(request.getNextPlan());
         counseling.setShareScope(request.getShareScope() != null ? request.getShareScope() : Counseling.ShareScope.ALL);
+        syncSharedTeachers(counseling, request);
 
         CounselingResponse response = new CounselingResponse(counselingRepository.save(counseling));
         notificationService.send(
@@ -119,6 +127,7 @@ public class CounselingService {
         if (request.getShareScope() != null) {
             counseling.setShareScope(request.getShareScope());
         }
+        syncSharedTeachers(counseling, request);
         return new CounselingResponse(counselingRepository.save(counseling));
     }
 
@@ -141,5 +150,25 @@ public class CounselingService {
     private Counseling findCounseling(Long id) {
         return counselingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("상담 내역을 찾을 수 없습니다."));
+    }
+
+    /** 조회자가 해당 상담을 열람할 수 있는지 — 작성자 / ALL / (SELECTED & 대상 교사) */
+    private boolean isVisibleTo(Counseling c, String requesterEmail) {
+        if (c.getTeacher().getEmail().equals(requesterEmail)) return true;
+        return switch (c.getShareScope()) {
+            case ALL -> true;
+            case PRIVATE -> false;
+            case SELECTED -> c.getSharedTeachers().stream()
+                    .anyMatch(t -> t.getEmail().equals(requesterEmail));
+        };
+    }
+
+    /** SELECTED면 대상 교사 집합을 동기화, 그 외 범위는 비운다. */
+    private void syncSharedTeachers(Counseling counseling, CounselingRequest request) {
+        counseling.getSharedTeachers().clear();
+        if (counseling.getShareScope() == Counseling.ShareScope.SELECTED
+                && request.getSharedTeacherIds() != null && !request.getSharedTeacherIds().isEmpty()) {
+            counseling.getSharedTeachers().addAll(userRepository.findAllById(request.getSharedTeacherIds()));
+        }
     }
 }

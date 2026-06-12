@@ -130,7 +130,7 @@ export default function StudentList() {
             {loading ? (
               <tr>
                 <td colSpan={6} className="table-cell text-center text-gray-400 py-12">
-                  <svg aria-label="로딩 중" className="w-6 h-6 animate-spin mx-auto text-primary-500" fill="none" viewBox="0 0 24 24">
+                  <svg aria-label="로딩 중" className="w-6 h-6 animate-spin mx-auto text-brand-500" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
@@ -138,17 +138,24 @@ export default function StudentList() {
               </tr>
             ) : students.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-cell text-center text-gray-400 py-12">
-                  {search || gradeFilter || classFilter ? '검색 결과가 없습니다.' : '등록된 학생이 없습니다.'}
+                <td colSpan={6} className="py-14">
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                    </svg>
+                    <span className="text-sm">
+                      {search || gradeFilter || classFilter ? '검색 결과가 없습니다.' : '등록된 학생이 없습니다.'}
+                    </span>
+                  </div>
                 </td>
               </tr>
             ) : (
               students.map((s, i) => (
-                <tr key={s.id} className="table-row">
+                <tr key={s.id} className="table-row hover:bg-brand-50/60">
                   <td className="table-cell text-center text-gray-400 font-mono text-xs">{page * PAGE_SIZE + i + 1}</td>
                   <td className="table-cell">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-sm font-semibold flex-shrink-0">
                         {s.name[0]}
                       </div>
                       <span className="font-medium text-gray-900">{s.name}</span>
@@ -160,7 +167,7 @@ export default function StudentList() {
                   <td className="table-cell text-center">
                     <button
                       onClick={() => navigate(`/students/${s.id}`)}
-                      className="btn-sm btn-ghost text-primary-700 px-3"
+                      className="btn-sm btn-ghost text-brand-700 px-3"
                     >
                       상세보기
                     </button>

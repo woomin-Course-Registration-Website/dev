@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { getStudent, addParent, removeParent } from '../../api/students'
 import { getGrades } from '../../api/grades'
-import { getRecord, updateRecord } from '../../api/records'
+import { getRecord, updateRecord, listRecordNotes, addRecordNote, updateRecordNote, deleteRecordNote } from '../../api/records'
 import { getFeedbacks, createFeedback, deleteFeedback } from '../../api/feedbacks'
 import { getCounselings, createCounseling, deleteCounseling, getPublicCounselings } from '../../api/counselings'
 import useAuthStore from '../../store/authStore'
@@ -20,7 +20,7 @@ const catLabel = { GRADE: '성적', BEHAVIOR: '행동', ATTENDANCE: '출결', AT
 const rankColor = (r) => {
   if (!r) return 'text-gray-300'
   if (r.startsWith('A')) return 'text-green-600 font-bold'
-  if (r.startsWith('B')) return 'text-blue-600 font-bold'
+  if (r.startsWith('B')) return 'text-brand-600 font-bold'
   if (r.startsWith('C')) return 'text-amber-600 font-bold'
   return 'text-red-600 font-bold'
 }
@@ -50,7 +50,13 @@ export default function StudentDetail() {
 
   // 학생부 수정
   const [editingNote, setEditingNote] = useState(false)
-  const [noteForm, setNoteForm]       = useState({ present: '', absent: '', late: '', specialNotes: '' })
+  const [noteForm, setNoteForm]       = useState({ present: '', absent: '', late: '' })
+
+  // 특기사항 다항목
+  const [notes, setNotes]               = useState([])
+  const [noteInput, setNoteInput]       = useState('')
+  const [editNoteId, setEditNoteId]     = useState(null)
+  const [editNoteText, setEditNoteText] = useState('')
 
   // 피드백 추가 폼
   const [fbForm, setFbForm]   = useState({ category: 'GRADE', content: '', isPublic: true })
@@ -91,8 +97,10 @@ export default function StudentDetail() {
           try { att = JSON.parse(r.attendance) }
           catch { att = {} }
         }
-        setNoteForm({ present: att.present ?? '', absent: att.absent ?? '', late: att.late ?? '', specialNotes: r.specialNotes ?? '' })
+        // 특기사항(specialNotes)은 US-03-03에서 다항목(StudentRecordNote)으로 분리 → noteForm에서 제외
+        setNoteForm({ present: att.present ?? '', absent: att.absent ?? '', late: att.late ?? '' })
       }).catch(() => setRecord(null))
+      listRecordNotes(id).then(setNotes).catch(() => setNotes([]))
     } else if (tab === '피드백') {
       getFeedbacks(id).then(setFeedbacks).catch(() => setFeedbacks([]))
     } else if (tab === '상담') {
@@ -105,9 +113,33 @@ export default function StudentDetail() {
     try {
       await updateRecord(id, {
         attendance: { present: Number(noteForm.present), absent: Number(noteForm.absent), late: Number(noteForm.late) },
-        specialNotes: noteForm.specialNotes,
       })
       setEditingNote(false)
+    } catch { /* 에러 무시 */ }
+  }
+
+  const handleAddNote = async () => {
+    if (!noteInput.trim()) return
+    try {
+      const created = await addRecordNote(id, noteInput.trim())
+      setNotes((prev) => [...prev, created])
+      setNoteInput('')
+    } catch { /* 에러 무시 */ }
+  }
+
+  const handleUpdateNote = async (noteId) => {
+    if (!editNoteText.trim()) return
+    try {
+      const updated = await updateRecordNote(noteId, editNoteText.trim())
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? updated : n)))
+      setEditNoteId(null); setEditNoteText('')
+    } catch { /* 에러 무시 */ }
+  }
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await deleteRecordNote(noteId)
+      setNotes((prev) => prev.filter((n) => n.id !== noteId))
     } catch { /* 에러 무시 */ }
   }
 
@@ -176,7 +208,7 @@ export default function StudentDetail() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <svg className="w-8 h-8 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24">
+      <svg className="w-8 h-8 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
@@ -202,7 +234,7 @@ export default function StudentDetail() {
         </button>
 
         <div className="card p-5 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary-700 text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-brand-700 text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
             {student.name[0]}
           </div>
           <div>
@@ -215,11 +247,13 @@ export default function StudentDetail() {
       </div>
 
       {/* 탭 */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-0 border-b border-gray-200">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-              tab === t ? 'bg-white text-gray-900 shadow-card' : 'text-gray-500 hover:text-gray-700'
+            className={`px-5 py-2.5 text-sm transition-all duration-150 -mb-px ${
+              tab === t
+                ? 'text-brand-700 border-b-2 border-brand-600 font-semibold'
+                : 'text-gray-500 hover:text-gray-800 border-b-2 border-transparent'
             }`}
           >{t}</button>
         ))}
@@ -245,17 +279,17 @@ export default function StudentDetail() {
                 <ResponsiveContainer width="100%" height={280}>
                   {useBar ? (
                     <BarChart data={radarData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
-                      <YAxis dataKey="subject" type="category" tick={{ fontSize: 12 }} width={36} />
+                      <YAxis dataKey="subject" type="category" tick={{ fontSize: 12, fill: '#78716c' }} width={36} />
                       <Tooltip formatter={(v) => [`${v}점`]} />
-                      <Bar dataKey="score" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="score" fill="#14b8a6" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   ) : (
                     <RadarChart data={radarData}>
-                      <PolarGrid stroke="#e5e7eb" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: '#6b7280' }} />
-                      <Radar name="성적" dataKey="score" stroke="#1d4ed8" fill="#3b82f6" fillOpacity={0.25} dot={{ r: 3, fill: '#1d4ed8' }} />
+                      <PolarGrid stroke="#e7e5e4" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: '#78716c' }} />
+                      <Radar name="성적" dataKey="score" stroke="#0f766e" fill="#14b8a6" fillOpacity={0.2} dot={{ r: 3, fill: '#0f766e' }} />
                       <Tooltip formatter={(v) => [`${v}점`, '점수']} />
                     </RadarChart>
                   )}
@@ -279,7 +313,7 @@ export default function StudentDetail() {
                         <td className={`table-cell text-center font-mono ${rankColor(g.gradeRank)}`}>{g.gradeRank}</td>
                       </tr>
                     ))}
-                    <tr className="bg-gray-50">
+                    <tr className="bg-brand-50/40">
                       <td className="table-cell font-semibold text-gray-900">평균</td>
                       <td className="table-cell text-right font-mono font-semibold text-gray-900">{avg}</td>
                       <td className="table-cell text-center">—</td>
@@ -308,9 +342,6 @@ export default function StudentDetail() {
                       </div>
                     ))}
                   </div>
-                  <textarea rows={3} placeholder="특기사항" value={noteForm.specialNotes}
-                    onChange={(e) => setNoteForm((f) => ({ ...f, specialNotes: e.target.value }))}
-                    className="input resize-none" />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setEditingNote(false)} className="btn-sm btn-secondary">취소</button>
                     <button onClick={handleSaveRecord} className="btn-sm btn-primary">저장</button>
@@ -326,17 +357,16 @@ export default function StudentDetail() {
                     ].map(({ label, key, color }) => {
                       const att = record.attendance ? JSON.parse(record.attendance) : {}
                       return (
-                        <div key={key} className="bg-gray-50 rounded-xl p-4 text-center">
+                        <div key={key} className="bg-bg rounded-xl p-4 text-center border border-gray-100">
                           <p className="text-xs text-gray-500 mb-1">{label}</p>
                           <p className={`text-2xl font-bold ${color}`}>{att[key] ?? 0}</p>
                         </div>
                       )
                     })}
                   </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">{record.specialNotes || '특기사항 없음'}</p>
                   {isTeacher && (
                     <div className="flex justify-end mt-3">
-                      <button onClick={() => setEditingNote(true)} className="btn-sm btn-secondary">수정</button>
+                      <button onClick={() => setEditingNote(true)} className="btn-sm btn-secondary">출결 수정</button>
                     </div>
                   )}
                 </>
@@ -349,6 +379,50 @@ export default function StudentDetail() {
               ) : '학생부가 없습니다.'}
             </div>
           )}
+
+          {/* 특기사항 다항목 */}
+          <div className="card p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">특기사항</h3>
+            {notes.length === 0 ? (
+              <p className="text-sm text-gray-400">등록된 특기사항이 없습니다.</p>
+            ) : (
+              <ul className="space-y-2">
+                {notes.map((n) => (
+                  <li key={n.id} className="flex items-start gap-2 p-3 rounded-lg border border-gray-100">
+                    {editNoteId === n.id ? (
+                      <>
+                        <input value={editNoteText} onChange={(e) => setEditNoteText(e.target.value)} className="input h-9 flex-1" />
+                        <button onClick={() => handleUpdateNote(n.id)} className="btn-sm btn-primary">저장</button>
+                        <button onClick={() => { setEditNoteId(null); setEditNoteText('') }} className="btn-sm btn-secondary">취소</button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-700 leading-relaxed flex-1">{n.content}</p>
+                        {isTeacher && (
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button onClick={() => { setEditNoteId(n.id); setEditNoteText(n.content) }} className="btn-sm btn-ghost px-2 text-xs">수정</button>
+                            <button onClick={() => handleDeleteNote(n.id)} className="btn-sm text-red-500 hover:bg-red-50 rounded-md px-2 text-xs font-medium">삭제</button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {isTeacher && (
+              <div className="flex gap-2 mt-4">
+                <input
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddNote() }}
+                  placeholder="특기사항 추가 (예: 교내 수학경시 대상)"
+                  className="input h-9 flex-1"
+                />
+                <button onClick={handleAddNote} className="btn-sm btn-primary">추가</button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -366,7 +440,7 @@ export default function StudentDetail() {
             </div>
           )}
           {fbModal && (
-            <div className="card p-5 border-2 border-primary-200 space-y-3">
+            <div className="card p-5 border-2 border-brand-200 space-y-3">
               <h3 className="font-semibold text-gray-900">피드백 작성</h3>
               <select value={fbForm.category} onChange={(e) => setFbForm((f) => ({ ...f, category: e.target.value }))} className="input">
                 {FEEDBACK_CATEGORIES.map((c) => <option key={c} value={c}>{catLabel[c]}</option>)}
@@ -426,7 +500,7 @@ export default function StudentDetail() {
             </div>
           )}
           {csModal && (
-            <div className="card p-5 border-2 border-primary-200 space-y-3">
+            <div className="card p-5 border-2 border-brand-200 space-y-3">
               <h3 className="font-semibold text-gray-900">상담 등록</h3>
               <input type="date" value={csForm.date} onChange={(e) => setCsForm((f) => ({ ...f, date: e.target.value }))} className="input" />
               <textarea rows={3} placeholder="상담 내용" value={csForm.content}
@@ -468,9 +542,9 @@ export default function StudentDetail() {
               </div>
               <p className="text-sm text-gray-700 leading-relaxed mb-3">{c.content}</p>
               {c.nextPlan && (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
-                  <p className="text-xs font-medium text-blue-700 mb-0.5">다음 계획</p>
-                  <p className="text-sm text-blue-800">{c.nextPlan}</p>
+                <div className="bg-brand-50 border border-brand-100 rounded-lg px-4 py-3">
+                  <p className="text-xs font-medium text-brand-700 mb-0.5">다음 계획</p>
+                  <p className="text-sm text-brand-800">{c.nextPlan}</p>
                 </div>
               )}
             </div>

@@ -8,10 +8,16 @@ import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.record.StudentRecordRequest;
 import com.studentmanagement.dto.record.StudentRecordResponse;
 import com.studentmanagement.exception.ResourceNotFoundException;
+import com.studentmanagement.domain.StudentRecordNote;
+import com.studentmanagement.dto.record.RecordNoteRequest;
+import com.studentmanagement.dto.record.RecordNoteResponse;
+import com.studentmanagement.repository.StudentRecordNoteRepository;
 import com.studentmanagement.repository.StudentRecordRepository;
 import com.studentmanagement.repository.StudentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * 학생부 서비스
@@ -26,15 +32,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class StudentRecordService {
 
     private final StudentRecordRepository recordRepository;
+    private final StudentRecordNoteRepository noteRepository;
     private final StudentRepository studentRepository;
     private final ObjectMapper objectMapper;  // Spring Boot 자동 구성 빈 사용
     private final StudentAccessService studentAccessService;
 
     public StudentRecordService(StudentRecordRepository recordRepository,
+                                StudentRecordNoteRepository noteRepository,
                                 StudentRepository studentRepository,
                                 ObjectMapper objectMapper,
                                 StudentAccessService studentAccessService) {
         this.recordRepository = recordRepository;
+        this.noteRepository = noteRepository;
         this.studentRepository = studentRepository;
         this.objectMapper = objectMapper;
         this.studentAccessService = studentAccessService;
@@ -76,8 +85,65 @@ public class StudentRecordService {
                 throw new IllegalArgumentException("출결 데이터 형식이 올바르지 않습니다.");
             }
         }
-        record.setSpecialNotes(request.getSpecialNotes());
+        // specialNotes는 특기사항 다항목(StudentRecordNote)으로 이관됨 — 값이 있을 때만 갱신
+        if (request.getSpecialNotes() != null) {
+            record.setSpecialNotes(request.getSpecialNotes());
+        }
 
         return new StudentRecordResponse(recordRepository.save(record));
+    }
+
+    // ── 특기사항 다항목 (StudentRecordNote) ──────────────────────────
+
+    /** 특기사항 목록 조회. 레거시 단일 specialNotes가 있으면 1회 항목으로 이전한다. */
+    @Transactional
+    public List<RecordNoteResponse> listNotes(Long studentId, String requesterEmail, User.Role role) {
+        studentAccessService.check(studentId, requesterEmail, role);
+        StudentRecord record = recordRepository.findByStudentId(studentId).orElse(null);
+        if (record == null) return List.of();
+        migrateLegacyNote(record);
+        return noteRepository.findByRecordIdOrderByCreatedAtAsc(record.getId())
+                .stream().map(RecordNoteResponse::new).toList();
+    }
+
+    @Transactional
+    public RecordNoteResponse addNote(Long studentId, RecordNoteRequest request) {
+        StudentRecord record = getOrCreateRecord(studentId);
+        migrateLegacyNote(record);
+        StudentRecordNote note = noteRepository.save(new StudentRecordNote(record, request.getContent()));
+        return new RecordNoteResponse(note);
+    }
+
+    @Transactional
+    public RecordNoteResponse updateNote(Long noteId, RecordNoteRequest request) {
+        StudentRecordNote note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("특기사항을 찾을 수 없습니다."));
+        note.setContent(request.getContent());
+        return new RecordNoteResponse(note);
+    }
+
+    @Transactional
+    public void deleteNote(Long noteId) {
+        if (!noteRepository.existsById(noteId)) {
+            throw new ResourceNotFoundException("특기사항을 찾을 수 없습니다.");
+        }
+        noteRepository.deleteById(noteId);
+    }
+
+    private StudentRecord getOrCreateRecord(Long studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+        return recordRepository.findByStudentId(studentId)
+                .orElseGet(() -> recordRepository.save(new StudentRecord(student)));
+    }
+
+    /** 레거시 단일 specialNotes를 첫 특기사항 항목으로 1회 이전 (이전 후 specialNotes는 비움). */
+    private void migrateLegacyNote(StudentRecord record) {
+        String legacy = record.getSpecialNotes();
+        if (legacy != null && !legacy.isBlank()
+                && noteRepository.findByRecordIdOrderByCreatedAtAsc(record.getId()).isEmpty()) {
+            noteRepository.save(new StudentRecordNote(record, legacy));
+            record.setSpecialNotes(null);
+        }
     }
 }

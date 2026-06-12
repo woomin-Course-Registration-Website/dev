@@ -47,10 +47,17 @@ public class Counseling {
     @Column(name = "next_plan", columnDefinition = "TEXT")
     private String nextPlan;
 
-    /** 공개 범위: ALL(전체 공개) / PRIVATE(교사 전용) */
+    /** 공개 범위: ALL(전체 공개) / SELECTED(지정 교사 공유) / PRIVATE(작성 교사 전용) */
     @Enumerated(EnumType.STRING)
     @Column(name = "share_scope", nullable = false, length = 10)
     private ShareScope shareScope = ShareScope.ALL;
+
+    /** SELECTED일 때 열람 가능한 대상 교사 집합 */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "counseling_shared_teachers",
+        joinColumns = @JoinColumn(name = "counseling_id"),
+        inverseJoinColumns = @JoinColumn(name = "teacher_id"))
+    private java.util.Set<User> sharedTeachers = new java.util.HashSet<>();
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -61,5 +68,5 @@ public class Counseling {
     @PreUpdate
     private void onUpdate() { this.updatedAt = LocalDateTime.now(); }
 
-    public enum ShareScope { ALL, PRIVATE }
+    public enum ShareScope { ALL, PRIVATE, SELECTED }
 }

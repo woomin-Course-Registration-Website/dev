@@ -178,6 +178,49 @@ class CounselingServiceTest {
                 .isInstanceOf(UnauthorizedException.class);
     }
 
+    // ── getAll / getById 공유범위 가시성 ────────────────────────────────
+
+    @Test
+    void getAll_hidesPrivateFromNonAuthor_andRespectsSelected() {
+        User other = new User("other@test.com", "pw", "다른교사", User.Role.TEACHER);
+
+        Counseling all = TestFixtures.counseling(teacher, student);
+        all.setShareScope(Counseling.ShareScope.ALL);
+        Counseling priv = TestFixtures.counseling(teacher, student);
+        priv.setShareScope(Counseling.ShareScope.PRIVATE);
+        Counseling selected = TestFixtures.counseling(teacher, student);
+        selected.setShareScope(Counseling.ShareScope.SELECTED);
+        selected.getSharedTeachers().add(other);
+
+        given(counselingRepository.findByFilters(null, null, null, null))
+                .willReturn(List.of(all, priv, selected));
+
+        List<CounselingResponse> forOther =
+                counselingService.getAll(null, null, null, null, "other@test.com");
+        assertThat(forOther).hasSize(2); // ALL + SELECTED(대상)
+
+        List<CounselingResponse> forAuthor =
+                counselingService.getAll(null, null, null, null, "teacher@test.com");
+        assertThat(forAuthor).hasSize(3); // 작성자는 전부 열람
+    }
+
+    @Test
+    void getById_whenPrivateAndNotAuthor_throwsUnauthorized() {
+        counseling.setShareScope(Counseling.ShareScope.PRIVATE);
+        given(counselingRepository.findById(400L)).willReturn(Optional.of(counseling));
+
+        assertThatThrownBy(() -> counselingService.getById(400L, "other@test.com"))
+                .isInstanceOf(UnauthorizedException.class);
+    }
+
+    @Test
+    void getById_whenAll_visibleToAnyTeacher() {
+        counseling.setShareScope(Counseling.ShareScope.ALL);
+        given(counselingRepository.findById(400L)).willReturn(Optional.of(counseling));
+
+        assertThat(counselingService.getById(400L, "other@test.com")).isNotNull();
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
 
     private CounselingRequest counselingRequest(Counseling.ShareScope scope) {

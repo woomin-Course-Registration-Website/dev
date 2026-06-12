@@ -1,11 +1,31 @@
 import { useState, useEffect } from 'react'
 import useAuthStore from '../../store/authStore'
-import { getMe, updateMe } from '../../api/users'
+import { getMe, updateMe, getNotificationSettings, updateNotificationSettings } from '../../api/users'
 import { changePassword } from '../../api/auth'
 
-const TABS = ['프로필', '비밀번호']
+const TABS = ['프로필', '비밀번호', '알림']
 
 const ROLE_LABEL = { TEACHER: '교사', STUDENT: '학생', PARENT: '학부모', ADMIN: '관리자' }
+
+function Toggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+        checked ? 'bg-brand-600' : 'bg-gray-300'
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition duration-200 ease-in-out ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  )
+}
 
 export default function Settings() {
   const { user, login } = useAuthStore()
@@ -25,6 +45,11 @@ export default function Settings() {
   const [pwSaving,  setPwSaving]  = useState(false)
   const [pwMsg,     setPwMsg]     = useState(null)
 
+  // 알림 설정
+  const [notif,       setNotif]       = useState({ notifyGrade: true, notifyFeedback: true, notifyCounseling: true })
+  const [notifSaving, setNotifSaving] = useState(false)
+  const [notifMsg,    setNotifMsg]    = useState(null)
+
   useEffect(() => {
     getMe().then((data) => {
       setName(data.name)
@@ -36,6 +61,29 @@ export default function Settings() {
       setRole(user?.role   || '')
     })
   }, [user])
+
+  useEffect(() => {
+    getNotificationSettings()
+      .then((d) => setNotif({
+        notifyGrade: d.notifyGrade,
+        notifyFeedback: d.notifyFeedback,
+        notifyCounseling: d.notifyCounseling,
+      }))
+      .catch(() => {})
+  }, [])
+
+  const handleSaveNotif = async () => {
+    setNotifSaving(true)
+    setNotifMsg(null)
+    try {
+      await updateNotificationSettings(notif)
+      setNotifMsg({ ok: true, text: '알림 설정이 저장되었습니다.' })
+    } catch {
+      setNotifMsg({ ok: false, text: '저장에 실패했습니다.' })
+    } finally {
+      setNotifSaving(false)
+    }
+  }
 
   const handleSaveProfile = async (e) => {
     e.preventDefault()
@@ -82,13 +130,19 @@ export default function Settings() {
       <h1 className="text-2xl font-bold text-gray-900">설정</h1>
 
       {/* 탭 */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex border-b border-gray-200">
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === t ? 'bg-white text-gray-900 shadow-card' : 'text-gray-500 hover:text-gray-700'
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-5 py-3 text-sm transition-all ${
+              tab === t
+                ? 'text-brand-700 border-b-2 border-brand-600 font-semibold -mb-px'
+                : 'text-gray-500 hover:text-gray-800'
             }`}
-          >{t}</button>
+          >
+            {t}
+          </button>
         ))}
       </div>
 
@@ -99,7 +153,7 @@ export default function Settings() {
 
           {/* 아바타 */}
           <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-            <div className="w-16 h-16 rounded-full bg-primary-700 text-white flex items-center justify-center text-2xl font-bold">
+            <div className="w-16 h-16 rounded-full bg-brand-700 text-white flex items-center justify-center text-2xl font-bold">
               {name?.[0] || '?'}
             </div>
             <div>
@@ -173,6 +227,41 @@ export default function Settings() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* 알림 탭 */}
+      {tab === '알림' && (
+        <div className="card p-6">
+          <h2 className="font-semibold text-gray-900 mb-5">알림 수신 설정</h2>
+          <div className="space-y-3">
+            {[
+              { key: 'notifyGrade',      label: '성적 알림',  desc: '성적이 입력·수정되면 알림을 받습니다.' },
+              { key: 'notifyFeedback',   label: '피드백 알림', desc: '피드백이 공개되면 알림을 받습니다.' },
+              { key: 'notifyCounseling', label: '상담 알림',  desc: '상담 내역이 등록되면 알림을 받습니다.' },
+            ].map(({ key, label, desc }) => (
+              <div key={key} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{label}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+                </div>
+                <Toggle
+                  checked={notif[key]}
+                  onChange={(val) => setNotif((n) => ({ ...n, [key]: val }))}
+                />
+              </div>
+            ))}
+          </div>
+          {notifMsg && (
+            <p className={`text-sm font-medium mt-4 ${notifMsg.ok ? 'text-green-600' : 'text-red-500'}`}>
+              {notifMsg.text}
+            </p>
+          )}
+          <div className="flex justify-end pt-5">
+            <button onClick={handleSaveNotif} disabled={notifSaving} className="btn-md btn-primary">
+              {notifSaving ? '저장 중...' : '저장'}
+            </button>
+          </div>
         </div>
       )}
     </div>

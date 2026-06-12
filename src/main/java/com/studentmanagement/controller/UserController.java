@@ -1,6 +1,7 @@
 package com.studentmanagement.controller;
 
 import com.studentmanagement.dto.ApiResponse;
+import com.studentmanagement.dto.user.NotificationSettingsRequest;
 import com.studentmanagement.dto.user.UpdateProfileRequest;
 import com.studentmanagement.dto.user.UpdateUserRequest;
 import com.studentmanagement.dto.user.UserRequest;
@@ -31,6 +32,23 @@ public class UserController {
     public ResponseEntity<?> updateMe(Authentication auth,
                                       @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(userService.updateName(auth.getName(), request.getName())));
+    }
+
+    @GetMapping("/me/notification-settings")
+    public ResponseEntity<?> getNotificationSettings(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getNotificationSettings(auth.getName())));
+    }
+
+    @PutMapping("/me/notification-settings")
+    public ResponseEntity<?> updateNotificationSettings(Authentication auth,
+                                                        @RequestBody NotificationSettingsRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.updateNotificationSettings(auth.getName(), request)));
+    }
+
+    @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
+    @GetMapping("/teachers")
+    public ResponseEntity<?> getTeachers() {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getTeachers()));
     }
 
     @PreAuthorize("hasRole('ADMIN')")

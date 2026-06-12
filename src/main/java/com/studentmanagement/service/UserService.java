@@ -1,6 +1,9 @@
 package com.studentmanagement.service;
 
 import com.studentmanagement.domain.User;
+import com.studentmanagement.dto.user.NotificationSettingsRequest;
+import com.studentmanagement.dto.user.NotificationSettingsResponse;
+import com.studentmanagement.dto.user.TeacherOptionResponse;
 import com.studentmanagement.dto.user.UpdateUserRequest;
 import com.studentmanagement.dto.user.UserRequest;
 import com.studentmanagement.dto.user.UserResponse;
@@ -26,6 +29,27 @@ public class UserService {
 
     public List<UserResponse> getAll() {
         return userRepository.findAll().stream().map(UserResponse::new).toList();
+    }
+
+    public List<TeacherOptionResponse> getTeachers() {
+        return userRepository.findByRoleOrderByNameAsc(User.Role.TEACHER)
+                .stream().map(TeacherOptionResponse::new).toList();
+    }
+
+    public NotificationSettingsResponse getNotificationSettings(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        return new NotificationSettingsResponse(user);
+    }
+
+    @Transactional
+    public NotificationSettingsResponse updateNotificationSettings(String email, NotificationSettingsRequest req) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        user.setNotifyGrade(req.isNotifyGrade());
+        user.setNotifyFeedback(req.isNotifyFeedback());
+        user.setNotifyCounseling(req.isNotifyCounseling());
+        return new NotificationSettingsResponse(user);
     }
 
     public UserResponse getByEmail(String email) {

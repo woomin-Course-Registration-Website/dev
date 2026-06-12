@@ -24,15 +24,15 @@ export default function Sidebar({ mobile = false, onClose }) {
 
   return (
     <aside className={clsx(
-      'flex flex-col h-full bg-primary-900 text-white',
+      'flex flex-col h-full bg-surface border-r border-gray-200 text-gray-700',
       mobile ? 'w-full' : 'w-60'
     )}>
       {/* 로고 */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center font-bold text-sm">SM</div>
-        <span className="font-bold text-base tracking-tight">SchoolManager</span>
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-200">
+        <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center font-bold text-sm text-white">SM</div>
+        <span className="font-bold text-base tracking-tight text-gray-900">SchoolManager</span>
         {mobile && (
-          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-white/10">
+          <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-gray-100">
             <IconClose />
           </button>
         )}
@@ -48,10 +48,10 @@ export default function Sidebar({ mobile = false, onClose }) {
             to={to}
             onClick={mobile ? onClose : undefined}
             className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
               isActive
-                ? 'bg-primary-700 text-white'
-                : 'text-primary-100 hover:bg-white/8 hover:text-white'
+                ? 'bg-brand-50 text-brand-700 font-semibold'
+                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
             )}
           >
             <Icon className="w-5 h-5 flex-shrink-0" />
@@ -61,14 +61,14 @@ export default function Sidebar({ mobile = false, onClose }) {
       </nav>
 
       {/* 하단 */}
-      <div className="px-3 py-4 border-t border-white/10 space-y-0.5">
+      <div className="px-3 py-4 border-t border-gray-200 space-y-0.5">
         {user?.role === 'ADMIN' && (
           <NavLink
             to="/admin"
             onClick={mobile ? onClose : undefined}
             className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-              isActive ? 'bg-primary-700 text-white' : 'text-primary-100 hover:bg-white/8 hover:text-white'
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+              isActive ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
             )}
           >
             <IconAdmin className="w-5 h-5 flex-shrink-0" />
@@ -78,8 +78,8 @@ export default function Sidebar({ mobile = false, onClose }) {
         <NavLink
           to="/settings"
           className={({ isActive }) => clsx(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-            isActive ? 'bg-primary-700 text-white' : 'text-primary-100 hover:bg-white/8 hover:text-white'
+            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+            isActive ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
           )}
         >
           <IconSettings className="w-5 h-5 flex-shrink-0" />
@@ -87,7 +87,7 @@ export default function Sidebar({ mobile = false, onClose }) {
         </NavLink>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-primary-100 hover:bg-red-500/20 hover:text-red-300 transition-all duration-150"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
         >
           <IconLogout className="w-5 h-5 flex-shrink-0" />
           로그아웃

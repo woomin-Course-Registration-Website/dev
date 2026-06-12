@@ -26,5 +26,9 @@ public class CounselingRequest {
     @Size(max = 1000, message = "다음 상담 계획은 1000자 이내여야 합니다.")
     private String nextPlan;
 
-    private Counseling.ShareScope shareScope = Counseling.ShareScope.ALL;
+    // null이면 "미지정" — 생성 시 ALL로 기본 적용, 수정 시 기존 값 유지 (누락으로 인한 의도치 않은 강등 방지)
+    private Counseling.ShareScope shareScope = null;
+
+    /** shareScope=SELECTED일 때 공유 대상 교사 ID 목록 */
+    private java.util.List<Long> sharedTeacherIds = new java.util.ArrayList<>();
 }

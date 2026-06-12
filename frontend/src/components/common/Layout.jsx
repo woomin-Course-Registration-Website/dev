@@ -7,7 +7,7 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-bg">
       {/* 데스크톱 사이드바 */}
       <div className="hidden lg:flex flex-shrink-0">
         <Sidebar />
@@ -26,7 +26,7 @@ export default function Layout() {
       {/* 오른쪽 영역 */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

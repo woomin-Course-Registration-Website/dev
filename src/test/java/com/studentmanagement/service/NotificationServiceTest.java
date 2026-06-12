@@ -122,4 +122,22 @@ class NotificationServiceTest {
 
         verify(notificationRepository, never()).save(any());
     }
+
+    @Test
+    void send_whenTypeDisabledByRecipient_doesNotSave() {
+        teacher.setNotifyGrade(false);
+
+        notificationService.send(teacher, Notification.Type.GRADE, "성적 알림");
+
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void send_whenOtherTypeStillEnabled_saves() {
+        teacher.setNotifyGrade(false); // GRADE만 끔
+
+        notificationService.send(teacher, Notification.Type.FEEDBACK, "피드백 알림");
+
+        verify(notificationRepository).save(any(Notification.class));
+    }
 }

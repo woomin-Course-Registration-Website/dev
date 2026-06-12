@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import java.math.BigDecimal;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase
+@ActiveProfiles("test")
 @TestPropertySource(properties = {
     "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
     // `year` 같은 예약어 컬럼이 안전하게 quoted 되도록 globally_quoted_identifiers 활성화

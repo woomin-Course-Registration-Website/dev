@@ -56,8 +56,9 @@ public class CounselingController {
             @Parameter(description = "학생 ID 필터") @RequestParam(required = false) Long studentId,
             @Parameter(description = "교사 ID 필터") @RequestParam(required = false) Long teacherId,
             @Parameter(description = "조회 시작일 (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @Parameter(description = "조회 종료일 (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return ResponseEntity.ok(ApiResponse.ok(counselingService.getAll(studentId, teacherId, from, to)));
+            @Parameter(description = "조회 종료일 (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(counselingService.getAll(studentId, teacherId, from, to, auth.getName())));
     }
 
     @Operation(summary = "상담 상세 조회", description = "특정 상담 내역의 전체 내용을 반환합니다.")
@@ -67,8 +68,9 @@ public class CounselingController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(
-            @Parameter(description = "상담 ID") @PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(counselingService.getById(id)));
+            @Parameter(description = "상담 ID") @PathVariable Long id,
+            Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(counselingService.getById(id, auth.getName())));
     }
 
     @Operation(

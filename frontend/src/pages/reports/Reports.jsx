@@ -79,13 +79,13 @@ export default function Reports() {
             <button
               key={id}
               onClick={() => setSelectedType(id)}
-              className={`w-full text-left card p-4 flex items-start gap-3 transition-all duration-150 hover:shadow-card-hover ${selectedType === id ? 'border-primary-500 ring-2 ring-primary-100' : ''}`}
+              className={`w-full text-left card p-4 flex items-start gap-3 transition-all duration-150 hover:shadow-card-hover ${selectedType === id ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100' : 'border-gray-200 hover:border-gray-300'}`}
             >
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedType === id ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedType === id ? 'bg-brand-700 text-white' : 'bg-gray-100 text-gray-500'}`}>
                 <Icon className="w-5 h-5" />
               </div>
               <div>
-                <p className={`text-sm font-semibold ${selectedType === id ? 'text-primary-700' : 'text-gray-900'}`}>{label}</p>
+                <p className={`text-sm font-semibold ${selectedType === id ? 'text-brand-700' : 'text-gray-900'}`}>{label}</p>
                 <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
               </div>
             </button>
@@ -184,7 +184,7 @@ export default function Reports() {
             )}
 
             {/* 하단 액션 */}
-            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-t border-gray-100 bg-surface flex items-center justify-between gap-3">
               <p className="text-xs text-gray-400">
                 총 {preview?.totalCount ?? 0}명
                 {preview?.generatedAt && ` · 기준일: ${preview.generatedAt}`}
@@ -193,7 +193,7 @@ export default function Reports() {
                 <button
                   onClick={() => handleDownload('excel')}
                   disabled={!!generating || loading || rows.length === 0}
-                  className="btn-sm btn-secondary gap-1.5 disabled:opacity-50"
+                  className="btn-sm btn-soft gap-1.5 disabled:opacity-50"
                 >
                   {generating === 'excel' ? <Spinner /> : <IconDownload />}
                   Excel

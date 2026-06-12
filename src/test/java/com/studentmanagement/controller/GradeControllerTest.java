@@ -227,6 +227,29 @@ class GradeControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    // ── getGradesByClass ──────────────────────────────────────────────
+
+    @Test
+    void getGradesByClass_teacher_returns200() throws Exception {
+        SecurityTestHelper.stubAsTeacher(jwtUtil);
+        given(gradeService.getGradesByClass(any(), any(), any(), any(), any())).willReturn(List.of());
+
+        mockMvc.perform(get("/api/grades")
+                .param("subjectId", "100").param("grade", "1").param("classNum", "2")
+                .param("year", "2025").param("semester", "1")
+                .header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void getGradesByClass_student_returns403() throws Exception {
+        SecurityTestHelper.stubAsStudent(jwtUtil);
+
+        mockMvc.perform(get("/api/grades").param("subjectId", "100")
+                .header("Authorization", FAKE_TOKEN))
+                .andExpect(status().isForbidden());
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
 
     private GradeResponse gradeResponse() {

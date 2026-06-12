@@ -123,4 +123,18 @@ public class GradeController {
             @Parameter(description = "학기") @RequestParam(required = false) Integer semester) {
         return ResponseEntity.ok(ApiResponse.ok(gradeService.getStats(grade, classNum, year, semester)));
     }
+
+    @Operation(summary = "반/과목별 성적 일괄 조회",
+               description = "성적 입력 화면용. subjectId 필수, grade/classNum/year/semester 선택. 각 항목에 studentId 포함.")
+    @GetMapping("/api/grades")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<?> getGradesByClass(
+            @Parameter(description = "과목 ID") @RequestParam Long subjectId,
+            @Parameter(description = "학년") @RequestParam(required = false) Integer grade,
+            @Parameter(description = "반")  @RequestParam(required = false) Integer classNum,
+            @Parameter(description = "연도") @RequestParam(required = false) Integer year,
+            @Parameter(description = "학기") @RequestParam(required = false) Integer semester) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                gradeService.getGradesByClass(subjectId, grade, classNum, year, semester)));
+    }
 }

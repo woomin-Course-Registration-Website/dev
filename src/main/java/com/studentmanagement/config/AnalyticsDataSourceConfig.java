@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -28,6 +29,7 @@ import java.util.Map;
  * - 트랜잭션: analyticsTransactionManager (ETL 쓰기·집계 읽기에 명시적으로 사용)
  */
 @Configuration
+@Profile("!test")
 @EnableJpaRepositories(
         basePackages = "com.studentmanagement.analytics.repository",
         entityManagerFactoryRef = "analyticsEntityManagerFactory",
