@@ -4,6 +4,7 @@ import { getStudents } from '../api/students'
 import { getCounselings } from '../api/counselings'
 import { getNotifications, markAsRead } from '../api/notifications'
 import { getGradeStats } from '../api/grades'
+import useAuthStore from '../store/authStore'
 
 const currentYear     = new Date().getFullYear()
 const currentSemester = new Date().getMonth() >= 8 ? 2 : 1
@@ -31,6 +32,7 @@ function timeAgo(dateStr) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
   const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
   const todayStr = new Date().toISOString().slice(0, 10)
 
@@ -77,28 +79,28 @@ export default function Dashboard() {
       label: '담당 학생',
       value: loading ? '...' : `${students.length}명`,
       sub: '전체 학생',
-      color: 'bg-blue-50 text-blue-700',
+      color: 'bg-brand-50 text-brand-700',
       icon: IconUsers,
     },
     {
       label: '오늘 상담',
       value: loading ? '...' : `${todayCounselings.length}건`,
       sub: '오늘 일정',
-      color: 'bg-green-50 text-green-700',
+      color: 'bg-amber-50 text-amber-600',
       icon: IconCalendar,
     },
     {
       label: '미읽은 알림',
       value: loading ? '...' : `${unreadCount}건`,
       sub: '확인 필요',
-      color: 'bg-purple-50 text-purple-700',
+      color: 'bg-rose-50 text-rose-600',
       icon: IconBell,
     },
     {
       label: '전체 상담',
       value: loading ? '...' : `${counselings.length}건`,
       sub: '누적 기록',
-      color: 'bg-amber-50 text-amber-700',
+      color: 'bg-brand-100 text-brand-800',
       icon: IconChat,
     },
   ]
@@ -112,10 +114,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* 페이지 제목 */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">대시보드</h1>
-        <span className="text-sm text-gray-400">{today}</span>
+      {/* 웰컴 헤더 */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            안녕하세요{user?.name ? `, ${user.name}님` : ''} 👋
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">오늘도 학생들과 함께하는 하루 되세요. · {today}</p>
+        </div>
       </div>
 
       {/* KPI 카드 */}
@@ -127,7 +133,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium">{label}</p>
-              <p className="text-2xl font-bold text-gray-900 leading-tight mt-0.5">{value}</p>
+              <p className="text-3xl font-bold text-gray-900 leading-tight mt-0.5 tabular">{value}</p>
               <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
             </div>
           </div>
@@ -200,7 +206,7 @@ export default function Dashboard() {
                 <li
                   key={c.id}
                   onClick={() => navigate('/counseling')}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group"
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-brand-50/60 transition-colors cursor-pointer group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center font-semibold text-sm flex-shrink-0">
                     {(c.studentName || '?')[0]}
@@ -239,9 +245,9 @@ export default function Dashboard() {
               <li
                 key={n.id}
                 onClick={() => handleNotifClick(n)}
-                className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-primary-50/60' : ''}`}
+                className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer hover:bg-brand-50/60 transition-colors ${!n.isRead ? 'bg-brand-50/40' : ''}`}
               >
-                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.isRead ? 'bg-gray-300' : 'bg-primary-500'}`} />
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.isRead ? 'bg-gray-300' : 'bg-accent-coral'}`} />
                 <div className="flex-1 min-w-0">
                   <span className={`badge mr-2 ${ntypeColor[n.type] || 'badge-gray'}`}>{ntypeLabel[n.type] || n.type}</span>
                   <span className="text-sm text-gray-700">{n.message}</span>

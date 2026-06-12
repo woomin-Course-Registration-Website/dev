@@ -63,25 +63,26 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 flex items-center justify-center p-4">
       {/* 배경 장식 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/5 rounded-full" />
         <div className="absolute -bottom-32 -left-20 w-80 h-80 bg-white/5 rounded-full" />
+        <div className="absolute top-1/3 -left-16 w-64 h-64 bg-accent-amber/10 rounded-full" />
       </div>
 
-      <div className="relative w-full max-w-md animate-fade-in">
+      <div className="relative w-full max-w-md animate-slide-up">
         {/* 헤더 */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-white/10 rounded-2xl mb-4">
             <span className="text-2xl font-bold text-white">SM</span>
           </div>
           <h1 className="text-2xl font-bold text-white">SchoolManager</h1>
-          <p className="text-primary-200 text-sm mt-1">학생 성적 및 상담 관리 시스템</p>
+          <p className="text-brand-200 text-sm mt-1">학생 성적 및 상담 관리 시스템</p>
         </div>
 
         {/* 카드 */}
-        <div className={`bg-white rounded-2xl shadow-modal p-8 ${shake ? 'animate-shake' : ''}`}>
+        <div className={`bg-surface rounded-3xl shadow-soft-lg p-8 ${shake ? 'animate-shake' : ''}`}>
           <h2 className="text-lg font-semibold text-gray-900 mb-6">로그인</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -164,8 +165,8 @@ export default function Login() {
 
       {/* 비밀번호 재설정 모달 */}
       {resetModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-surface rounded-2xl shadow-soft-lg w-full max-w-sm p-6 animate-slide-up">
             <h3 className="font-semibold text-gray-900 mb-1">비밀번호 재설정</h3>
             <p className="text-sm text-gray-500 mb-4">가입한 이메일을 입력하면 임시 비밀번호를 발송합니다.</p>
             <form onSubmit={handleResetPassword} className="space-y-3">

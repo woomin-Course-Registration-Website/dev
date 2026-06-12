@@ -7,6 +7,26 @@ const TABS = ['프로필', '비밀번호', '알림']
 
 const ROLE_LABEL = { TEACHER: '교사', STUDENT: '학생', PARENT: '학부모', ADMIN: '관리자' }
 
+function Toggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+        checked ? 'bg-brand-600' : 'bg-gray-300'
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition duration-200 ease-in-out ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  )
+}
+
 export default function Settings() {
   const { user, login } = useAuthStore()
   const [tab, setTab]   = useState('프로필')
@@ -110,13 +130,19 @@ export default function Settings() {
       <h1 className="text-2xl font-bold text-gray-900">설정</h1>
 
       {/* 탭 */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="flex border-b border-gray-200">
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === t ? 'bg-white text-gray-900 shadow-card' : 'text-gray-500 hover:text-gray-700'
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-5 py-3 text-sm transition-all ${
+              tab === t
+                ? 'text-brand-700 border-b-2 border-brand-600 font-semibold -mb-px'
+                : 'text-gray-500 hover:text-gray-800'
             }`}
-          >{t}</button>
+          >
+            {t}
+          </button>
         ))}
       </div>
 
@@ -127,7 +153,7 @@ export default function Settings() {
 
           {/* 아바타 */}
           <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-            <div className="w-16 h-16 rounded-full bg-primary-700 text-white flex items-center justify-center text-2xl font-bold">
+            <div className="w-16 h-16 rounded-full bg-brand-700 text-white flex items-center justify-center text-2xl font-bold">
               {name?.[0] || '?'}
             </div>
             <div>
@@ -214,18 +240,16 @@ export default function Settings() {
               { key: 'notifyFeedback',   label: '피드백 알림', desc: '피드백이 공개되면 알림을 받습니다.' },
               { key: 'notifyCounseling', label: '상담 알림',  desc: '상담 내역이 등록되면 알림을 받습니다.' },
             ].map(({ key, label, desc }) => (
-              <label key={key} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50">
+              <div key={key} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{label}</p>
-                  <p className="text-xs text-gray-400">{desc}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
                 </div>
-                <input
-                  type="checkbox"
+                <Toggle
                   checked={notif[key]}
-                  onChange={(e) => setNotif((n) => ({ ...n, [key]: e.target.checked }))}
-                  className="w-5 h-5 accent-primary-600"
+                  onChange={(val) => setNotif((n) => ({ ...n, [key]: val }))}
                 />
-              </label>
+              </div>
             ))}
           </div>
           {notifMsg && (

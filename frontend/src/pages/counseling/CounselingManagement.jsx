@@ -143,7 +143,7 @@ export default function CounselingManagement() {
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
           {['list', 'calendar'].map((v) => (
             <button key={v} onClick={() => setView(v)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${view === v ? 'bg-white text-gray-900 shadow-card' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${view === v ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >{v === 'list' ? '목록' : '캘린더'}</button>
           ))}
         </div>
@@ -181,10 +181,10 @@ export default function CounselingManagement() {
               const dateStr = `${month}-${String(day).padStart(2, '0')}`
               const entries = calDates.entries.filter((c) => c.date === dateStr)
               return (
-                <div key={day} className={`min-h-[72px] p-1.5 rounded-lg border text-xs ${entries.length ? 'border-primary-200 bg-primary-50' : 'border-transparent'}`}>
-                  <span className={`font-medium ${entries.length ? 'text-primary-700' : 'text-gray-600'}`}>{day}</span>
+                <div key={day} className={`min-h-[72px] p-1.5 rounded-lg border text-xs ${entries.length ? 'border-brand-200 bg-brand-50' : 'border-transparent'}`}>
+                  <span className={`font-medium ${entries.length ? 'text-brand-700' : 'text-gray-600'}`}>{day}</span>
                   {entries.map((e) => (
-                    <div key={e.id} className="mt-1 bg-primary-600 text-white rounded px-1 py-0.5 truncate leading-tight">
+                    <div key={e.id} className="mt-1 bg-brand-600 text-white rounded px-1 py-0.5 truncate leading-tight">
                       {e.studentName}
                     </div>
                   ))}
@@ -208,7 +208,7 @@ export default function CounselingManagement() {
               <div key={c.id} className="card p-5">
                 <div className="flex items-start justify-between gap-3 mb-2.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold">
+                    <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-semibold">
                       {(c.studentName || '?')[0]}
                     </div>
                     <span className="font-semibold text-gray-900 text-sm">{c.studentName}</span>
@@ -223,9 +223,9 @@ export default function CounselingManagement() {
                 </div>
                 <p className="text-sm text-gray-700 leading-relaxed mb-3">{c.content}</p>
                 {c.nextPlan && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">
-                    <p className="text-xs font-medium text-blue-700 mb-0.5">다음 계획</p>
-                    <p className="text-sm text-blue-800">{c.nextPlan}</p>
+                  <div className="bg-brand-50 border border-brand-100 rounded-lg px-4 py-2.5">
+                    <p className="text-xs font-medium text-brand-700 mb-0.5">다음 계획</p>
+                    <p className="text-sm text-brand-800">{c.nextPlan}</p>
                   </div>
                 )}
               </div>
@@ -238,7 +238,7 @@ export default function CounselingManagement() {
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-modal w-full max-w-lg p-6 animate-slide-up">
+          <div className="relative bg-white rounded-2xl shadow-soft-lg w-full max-w-lg p-6 animate-slide-up">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-gray-900">{editTarget ? '상담 수정' : '상담 기록'}</h2>
               <button onClick={() => setModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
@@ -308,7 +308,7 @@ export default function CounselingManagement() {
                         type="radio"
                         checked={form.scope === v}
                         onChange={() => setForm((f) => ({ ...f, scope: v }))}
-                        className="accent-primary-700"
+                        className="accent-brand-700"
                       />
                       <span className="text-sm text-gray-700">{l}</span>
                     </label>
@@ -331,7 +331,7 @@ export default function CounselingManagement() {
                                 ? [...f.sharedTeacherIds, t.id]
                                 : f.sharedTeacherIds.filter((id) => String(id) !== String(t.id)),
                             }))}
-                            className="accent-primary-700"
+                            className="accent-brand-700"
                           />
                           <span className="text-sm text-gray-700">{t.name}</span>
                         </label>
@@ -355,7 +355,7 @@ export default function CounselingManagement() {
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteId(null)} />
-          <div className="relative bg-white rounded-2xl shadow-modal w-full max-w-sm p-6 animate-slide-up text-center">
+          <div className="relative bg-white rounded-2xl shadow-soft-lg w-full max-w-sm p-6 animate-slide-up text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
             </div>

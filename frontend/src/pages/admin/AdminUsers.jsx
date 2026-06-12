@@ -6,6 +6,13 @@ const ROLE_LABEL = { TEACHER: '교사', STUDENT: '학생', PARENT: '학부모', 
 const ROLES = ['TEACHER', 'STUDENT', 'PARENT', 'ADMIN']
 const EMPTY_FORM = { email: '', password: '', name: '', role: 'TEACHER' }
 
+const ROLE_BADGE = {
+  TEACHER: 'badge-brand',
+  STUDENT: 'badge-blue',
+  PARENT:  'badge-amber',
+  ADMIN:   'badge-purple',
+}
+
 function errorMessage(err, fallback) {
   return err?.response?.data?.error || err?.response?.data?.message || fallback
 }
@@ -130,15 +137,15 @@ export default function AdminUsers() {
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">이름</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">이메일</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">역할</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">관리</th>
+          <thead>
+            <tr className="table-header">
+              <th className="table-cell text-left font-medium">이름</th>
+              <th className="table-cell text-left font-medium">이메일</th>
+              <th className="table-cell text-left font-medium">역할</th>
+              <th className="table-cell text-right font-medium">관리</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody>
             {loading ? (
               <tr><td colSpan={4} className="text-center py-10 text-gray-400">불러오는 중...</td></tr>
             ) : filtered.length === 0 ? (
@@ -146,20 +153,16 @@ export default function AdminUsers() {
             ) : filtered.map((u) => {
               const isSelf = u.id === currentUser?.id || u.email === currentUser?.email
               return (
-                <tr key={u.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{u.email}</td>
-                  <td className="px-4 py-3">
-                    <span className={`badge ${
-                      u.role === 'ADMIN' ? 'badge-red' :
-                      u.role === 'TEACHER' ? 'badge-blue' :
-                      u.role === 'STUDENT' ? 'badge-green' : 'badge-purple'
-                    }`}>
+                <tr key={u.id} className="table-row">
+                  <td className="table-cell font-medium text-gray-900">{u.name}</td>
+                  <td className="table-cell text-gray-600">{u.email}</td>
+                  <td className="table-cell">
+                    <span className={`badge ${ROLE_BADGE[u.role] ?? 'badge-gray'}`}>
                       {ROLE_LABEL[u.role] || u.role}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => openEdit(u)} className="btn-sm btn-ghost text-primary-700 mr-2">
+                  <td className="table-cell text-right">
+                    <button onClick={() => openEdit(u)} className="btn-sm btn-ghost text-brand-700 mr-2">
                       수정
                     </button>
                     <button
@@ -179,12 +182,12 @@ export default function AdminUsers() {
 
       {modal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-soft-lg w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900">
                 {modal === 'create' ? '사용자 추가' : '사용자 수정'}
               </h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">닫기</button>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">닫기</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <label className="block text-sm font-medium text-gray-700">
@@ -233,7 +236,7 @@ export default function AdminUsers() {
               </label>
               {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={closeModal} className="btn-md btn-ghost">취소</button>
+                <button type="button" onClick={closeModal} className="btn-md btn-secondary">취소</button>
                 <button type="submit" disabled={saving} className="btn-md btn-primary">
                   {saving ? '저장 중...' : '저장'}
                 </button>
@@ -245,12 +248,12 @@ export default function AdminUsers() {
 
       {confirmDel && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+          <div className="bg-white rounded-2xl shadow-soft-lg w-full max-w-sm p-6 text-center">
             <h3 className="font-semibold text-gray-900 mb-2">사용자를 삭제할까요?</h3>
             <p className="text-sm text-gray-500 mb-6">삭제한 계정은 되돌릴 수 없습니다.</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmDel(null)} className="flex-1 btn-md btn-ghost">취소</button>
-              <button onClick={handleDelete} className="flex-1 btn-md bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors">
+              <button onClick={() => setConfirmDel(null)} className="flex-1 btn-md btn-secondary">취소</button>
+              <button onClick={handleDelete} className="flex-1 btn-md btn-danger">
                 삭제
               </button>
             </div>
