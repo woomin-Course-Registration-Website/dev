@@ -231,22 +231,28 @@ terraform apply
 
 ---
 
-## 10. 학습 분석(EP-08) 인프라 — **계획 / 미구현**
+## 10. 학습 분석(EP-08) 인프라 — **앱 코드 구현 완료 · 클러스터 적용은 운영자 작업**
 
-> [SYSTEM_ARCHITECTURE.md §9](SYSTEM_ARCHITECTURE.md#9-학습-분석-ep-08-계획--미구현), [BACKLOG.md `EP-08`](../BACKLOG.md) 참조. 본 섹션은 EP-08 구현 시 추가될 인프라를 미리 정리. 별도 세션에서 작업.
+> [SYSTEM_ARCHITECTURE.md §9](SYSTEM_ARCHITECTURE.md), [BACKLOG.md `EP-08`](../BACKLOG.md) 참조.
+>
+> **상태:** 애플리케이션 코드(멀티 datasource·ETL·집계 API·대시보드·CDC consumer·챗봇)와 로컬 docker-compose 경로는 **구현 완료**. 배포 환경(EKS/RDS)에 올리려면 아래 **운영자 작업**(클러스터/kubeseal 접근 필요)이 남는다.
 
-### 10.1 필수 — 분석 DB + 스케줄러 ETL
+### 10.1 필수 — 분석 DB + 스케줄러 ETL  *(코드 완료 / 운영자 적용 잔여)*
 
 추가 AWS 리소스 **0건**. 모두 기존 RDS·EKS 안에서 처리.
 
-| 항목 | 변경 |
+| 항목 | 상태 / 변경 |
 |------|------|
-| RDS 논리 DB | 환경별 `student_mgmt_analytics_{env}` 1회 SQL로 생성(`CREATE DATABASE ...`). 컷오버 런북에 추가. |
-| Spring Boot | `application.yml`에 분석 DB datasource 추가 (`spring.datasource.analytics.*`), `@EnableScheduling`로 ETL 컴포넌트 실행 |
-| SealedSecret | `backend-secrets`에 분석 DB 자격증명 추가(또는 운영과 동일 사용자 사용) |
-| 모니터링 | ETL 실패율·지연 시간을 Prometheus 메트릭으로 노출 (`/actuator/prometheus`에 자동 포함) |
+| Spring Boot | ✅ 완료 — `config/AnalyticsDataSourceConfig`(멀티 datasource), `@EnableScheduling` + `EtlService`, `application.yml`의 `app.analytics.*` |
+| RDS 논리 DB | ⏳ 운영자 — 환경별 `student_mgmt_analytics_{env}` 1회 `CREATE DATABASE ...`. 컷오버 런북에 추가 |
+| backend env | ⏳ 운영자 — `backend-secrets`(envFrom)에 `ANALYTICS_DATASOURCE_URL`(분석 DB URL) 추가. 자격증명은 운영과 동일 사용자 재사용 가능 |
+| 모니터링 | ✅ ETL 로그/지표는 `/actuator/prometheus`에 자동 포함 |
 
-### 10.2 가점 — Kafka 기반 CDC
+### 10.2 가점 — Kafka 기반 CDC  *(로컬 완료 / 클라우드 잔여)*
+
+✅ **로컬:** `docker-compose.yml`의 `cdc` 프로파일(Kafka KRaft + Debezium Connect), `docker/debezium/`(커넥터 설정·등록 스크립트), 백엔드 `CdcConsumer`(`app.analytics.cdc.enabled=true`), MySQL binlog ROW 설정까지 구현. 실행: `docker compose --profile cdc up -d` → `./docker/debezium/register-connector.sh`.
+
+⏳ **클라우드(잔여):** EKS에 올리려면 아래 옵션 중 택1로 Kafka를 프로비저닝하고 `CDC_ENABLED=true` + binlog 파라미터를 적용해야 한다.
 
 **옵션 A: AWS MSK Serverless (관리형, 권장)**
 - `aws_msk_serverless_cluster` 리소스 신규
@@ -265,16 +271,15 @@ terraform apply
 - Kafka Connect JDBC Sink 또는 Spring Kafka Consumer가 분석 DB에 적재
 - backend NetworkPolicy에 Kafka 통신 허용
 
-### 10.3 선택 — AI 챗봇
+### 10.3 선택 — AI 챗봇  *(코드 완료 / API 키만 운영자)*
 
-| 항목 | 추가/변경 |
+| 항목 | 상태 / 추가·변경 |
 |------|----------|
-| LLM 제공자 | Claude(Anthropic API), OpenAI, 또는 AWS Bedrock 중 택1. Bedrock 선택 시 IRSA로 IAM 권한 부여 가능 (AWS 외부 API는 단순 키 인증) |
-| API 키 | SealedSecret `backend-secrets`에 `LLM_API_KEY` 추가 |
-| 백엔드 | `ChatController`, `ChatService` 신규. 분석 DB 조회 도구를 function calling으로 노출(권한별 데이터 범위 제한) |
-| 프론트엔드 | 채팅 UI 컴포넌트, SSE/streaming 응답 처리 |
-| API Gateway | streaming 응답 위해 HTTP API의 `payload_format_version`을 확인(2.0이면 SSE OK), 필요 시 `/api/chat` 라우트를 long-timeout으로 분리 |
-| 비용 | LLM API 토큰 사용량 종량제. Bedrock(Claude)은 영문 기준 $3/M input tokens 수준. 학생당 월 수십 회 질의면 매우 저렴 |
+| 백엔드 | ✅ `ChatController` + `analytics/service/ChatService` 신규. Anthropic `claude-opus-4-8`(adaptive thinking). **권한 범위 분석 데이터를 시스템 프롬프트에 주입**하는 방식(function calling 대신 — TEACHER/ADMIN 한정 + 집계 데이터만 노출로 PII 경계 확보) |
+| 프론트엔드 | ✅ `Analytics.jsx`에 채팅 패널(`/analytics/chat/status`로 활성 여부 확인 후 노출). 현재 비스트리밍 응답 |
+| API 키 | ⏳ 운영자 — SealedSecret `backend-secrets`에 `LLM_API_KEY` 추가(미설정 시 챗봇 자동 비활성·503) |
+| LLM 제공자 | Anthropic API 기본. Bedrock(Claude) 전환 시 IRSA로 IAM 권한 부여 가능 |
+| 비용 | LLM 토큰 종량제. 학생당 월 수십 회 질의면 매우 저렴 |
 
 ### 10.4 EP-08 추가 시 부트스트랩 보강
 

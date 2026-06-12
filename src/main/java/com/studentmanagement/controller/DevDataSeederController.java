@@ -1,19 +1,23 @@
 package com.studentmanagement.controller;
 
+import com.studentmanagement.domain.Assignment;
 import com.studentmanagement.domain.Counseling;
 import com.studentmanagement.domain.Feedback;
 import com.studentmanagement.domain.Grade;
 import com.studentmanagement.domain.Student;
 import com.studentmanagement.domain.StudentRecord;
 import com.studentmanagement.domain.Subject;
+import com.studentmanagement.domain.Submission;
 import com.studentmanagement.domain.User;
 import com.studentmanagement.dto.ApiResponse;
+import com.studentmanagement.repository.AssignmentRepository;
 import com.studentmanagement.repository.CounselingRepository;
 import com.studentmanagement.repository.FeedbackRepository;
 import com.studentmanagement.repository.GradeRepository;
 import com.studentmanagement.repository.StudentRecordRepository;
 import com.studentmanagement.repository.StudentRepository;
 import com.studentmanagement.repository.SubjectRepository;
+import com.studentmanagement.repository.SubmissionRepository;
 import com.studentmanagement.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
@@ -25,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +46,8 @@ public class DevDataSeederController {
     private final FeedbackRepository feedbackRepository;
     private final CounselingRepository counselingRepository;
     private final StudentRecordRepository studentRecordRepository;
+    private final AssignmentRepository assignmentRepository;
+    private final SubmissionRepository submissionRepository;
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/seed")
@@ -104,6 +111,7 @@ public class DevDataSeederController {
         int feedbackCount = seedFeedbacks(teacher1, teacher2, students);
         int counselingCount = seedCounselings(teacher1, teacher2, students);
         int recordCount = seedRecords(students);
+        int submissionCount = seedAssignments(subjects, students);
 
         return ApiResponse.ok(Map.of(
             "users", (int) userRepository.count(),
@@ -112,8 +120,55 @@ public class DevDataSeederController {
             "gradesCreated", gradeCount,
             "feedbacksCreated", feedbackCount,
             "counselingsCreated", counselingCount,
-            "studentRecordsCreated", recordCount
+            "studentRecordsCreated", recordCount,
+            "submissionsCreated", submissionCount
         ));
+    }
+
+    /**
+     * 과제·제출 더미 시딩 — 학습 분석(EP-08) 제출률 지표용.
+     * 각 과목에 2024-1/2024-2 과제를 만들고, 학생별 제출 상태를 분산 배치한다.
+     */
+    private int seedAssignments(List<Subject> subjects, List<Student> students) {
+        if (assignmentRepository.count() > 0) {
+            return 0;
+        }
+        // 학생 인덱스별 제출 패턴(순환): 우수 학생은 대부분 제출, 일부는 지각/미제출
+        Submission.Status[] pattern = {
+            Submission.Status.SUBMITTED,
+            Submission.Status.SUBMITTED,
+            Submission.Status.LATE,
+            Submission.Status.SUBMITTED,
+            Submission.Status.SUBMITTED,
+            Submission.Status.NOT_SUBMITTED,
+            Submission.Status.SUBMITTED,
+        };
+        int submissionCount = 0;
+        for (Subject subject : subjects) {
+            for (int sem = 1; sem <= 2; sem++) {
+                Assignment assignment = new Assignment();
+                assignment.setSubject(subject);
+                assignment.setTitle(subject.getName() + " 과제 " + sem + "학기");
+                assignment.setDueDate(LocalDate.of(2024, sem == 1 ? 4 : 10, 15));
+                assignment.setYear(2024);
+                assignment.setSemester(sem);
+                assignmentRepository.save(assignment);
+
+                for (int si = 0; si < students.size(); si++) {
+                    // 과목·학기에 따라 패턴을 살짝 회전시켜 다양성 부여
+                    Submission.Status status = pattern[(si + sem) % pattern.length];
+                    Submission submission = new Submission();
+                    submission.setAssignment(assignment);
+                    submission.setStudent(students.get(si));
+                    submission.setStatus(status);
+                    submission.setSubmittedAt(
+                            status == Submission.Status.NOT_SUBMITTED ? null : LocalDateTime.now());
+                    submissionRepository.save(submission);
+                    submissionCount++;
+                }
+            }
+        }
+        return submissionCount;
     }
 
     private User upsertUser(String email, String name, User.Role role) {
