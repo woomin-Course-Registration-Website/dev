@@ -26,10 +26,14 @@ export default function Analytics() {
   const [etlRunning, setEtlRunning] = useState(false)
   const [etlMsg, setEtlMsg]       = useState('')
 
-  const loadOverview = useCallback(async () => {
+  const loadOverview = useCallback(async (autoEtl = true) => {
     setLoading(true)
     try {
-      const ov = await getOverview()
+      let ov = await getOverview()
+      // 첫 진입 시 분석 데이터가 비어 있으면 ETL을 1회 자동 실행해 채운다 (빈 화면 방지)
+      if (autoEtl && !ov?.students?.length) {
+        try { await runEtl(); ov = await getOverview() } catch { /* 권한/오류는 무시 */ }
+      }
       setOverview(ov || { students: [], subjects: [] })
       if (ov?.students?.length && !studentId) setStudentId(String(ov.students[0].id))
       if (ov?.subjects?.length && !subjectId) setSubjectId(String(ov.subjects[0].id))
@@ -57,8 +61,11 @@ export default function Analytics() {
     setEtlMsg('')
     try {
       const r = await runEtl()
-      setEtlMsg(`적재 완료 — 성적 ${r.grades} · 제출 ${r.submissions} · 피드백 ${r.feedbacks}`)
-      await loadOverview()
+      const noChange = !r.grades && !r.submissions && !r.feedbacks
+      setEtlMsg(noChange
+        ? '최신 상태입니다 — 변경된 데이터 없음'
+        : `적재 완료 — 신규 성적 ${r.grades} · 제출 ${r.submissions} · 피드백 ${r.feedbacks}`)
+      await loadOverview(false)
       if (studentId) getStudentSummary(studentId).then(setSummary).catch(() => {})
       if (subjectId) getSubjectDistribution(subjectId).then(setDist).catch(() => {})
     } catch {
