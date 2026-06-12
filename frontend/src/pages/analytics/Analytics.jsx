@@ -233,7 +233,7 @@ function ChatPanel({ studentId, students }) {
   const [enabled, setEnabled] = useState(null)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
-  const [scope, setScope] = useState('all') // 'all' | 'student'
+  const [scope, setScope] = useState('student') // 'student'(선택 학생 한정) | 'all'(반 전체)
   const [sending, setSending] = useState(false)
 
   useEffect(() => {
@@ -286,7 +286,11 @@ function ChatPanel({ studentId, students }) {
 
       <div className="space-y-3 mb-4 max-h-72 overflow-y-auto">
         {messages.length === 0 && (
-          <p className="text-sm text-gray-400">예: "이 학생의 최근 성적 추이는?", "수학 과목 제출률은 어때?"</p>
+          <p className="text-sm text-gray-400">
+            {scope === 'student' && selected
+              ? `예: "${selected.name} 성적 추이 알려줘", "어떤 과목을 더 공부해야 해?", "출석·제출 상태는?"`
+              : '예: "출석률이 가장 낮은 학생은?", "수학 평균과 제출률은?", "90점 이상이 많은 과목은?"'}
+          </p>
         )}
         {messages.map((m, i) => (
           <div key={i} className={m.role === 'user' ? 'text-right' : 'text-left'}>

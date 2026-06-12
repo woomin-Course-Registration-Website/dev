@@ -8,6 +8,7 @@ import com.anthropic.models.messages.ThinkingConfigAdaptive;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studentmanagement.dto.analytics.AnalyticsOverviewResponse;
 import com.studentmanagement.dto.analytics.ChatResponse;
+import com.studentmanagement.dto.analytics.StudentSummaryResponse;
 import com.studentmanagement.dto.analytics.SubjectDistributionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,9 +70,22 @@ public class ChatService {
         String contextJson = buildContextJson(studentId);
         String system = """
                 당신은 교사를 돕는 학습 분석 어시스턴트입니다.
-                아래 [분석 데이터]에 근거해서만 한국어로 간결하고 정확하게 답하세요.
-                데이터에 없는 내용은 추측하지 말고 모른다고 답하세요.
-                점수·비율은 데이터의 값을 사용하고, 학생 개인정보(연락처 등)는 다루지 않습니다.
+                아래 [분석 데이터](JSON)에 근거해서만 한국어로 간결하고 정확하게 답하세요.
+
+                데이터 구조 안내:
+                - overview: 학생·과목 목록
+                - subjectDistributions: 과목별 반 평균·점수 구간 분포·제출률
+                - student(특정 학생) 또는 students[](전체): 학생별 상세
+                  · gradeTrend: 학기별 평균 점수 추이
+                  · subjectScores: 과목별 평균 점수 (낮을수록 약한 과목)
+                  · attendance: 출석/결석/지각/출석률
+                  · submission: 과제 제출률
+                  · feedbackByCategory: 피드백 카테고리별 건수
+
+                활용 지침:
+                - "어떤 과목을 더 공부?" → subjectScores에서 평균이 낮은 과목을 짚고, subjectDistributions의 반 평균과 비교해 설명.
+                - "성적 추이" → gradeTrend 사용. "출석/제출 문제 학생" → 전체 students[]를 비교.
+                - 데이터에 없는 내용(연락처 등 개인정보)은 추측하지 말고 모른다고 답하세요.
 
                 [분석 데이터]
                 """ + contextJson;
@@ -105,16 +119,26 @@ public class ChatService {
     private String buildContextJson(Long studentId) {
         try {
             Map<String, Object> ctx = new LinkedHashMap<>();
+            AnalyticsOverviewResponse overview = analyticsService.getOverview();
+            ctx.put("overview", overview);
+
+            // 과목별 반 평균·점수분포·제출률 — 항상 포함(개인 점수와 비교 근거 제공)
+            List<SubjectDistributionResponse> subjects = new ArrayList<>();
+            for (AnalyticsOverviewResponse.SubjectRef s : overview.subjects()) {
+                subjects.add(analyticsService.getSubjectDistribution(s.id()));
+            }
+            ctx.put("subjectDistributions", subjects);
+
             if (studentId != null) {
+                // 특정 학생 한정: 성적추이·과목별 점수·출결·제출·피드백 상세
                 ctx.put("student", analyticsService.getStudentSummary(studentId));
             } else {
-                AnalyticsOverviewResponse overview = analyticsService.getOverview();
-                ctx.put("overview", overview);
-                List<SubjectDistributionResponse> subjects = new ArrayList<>();
-                for (AnalyticsOverviewResponse.SubjectRef s : overview.subjects()) {
-                    subjects.add(analyticsService.getSubjectDistribution(s.id()));
+                // 전체: 모든 학생의 상세 요약 → 반 전체 비교·검색·추천 질의 가능
+                List<StudentSummaryResponse> students = new ArrayList<>();
+                for (AnalyticsOverviewResponse.StudentRef s : overview.students()) {
+                    students.add(analyticsService.getStudentSummary(s.id()));
                 }
-                ctx.put("subjectDistributions", subjects);
+                ctx.put("students", students);
             }
             return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(ctx);
         } catch (Exception e) {

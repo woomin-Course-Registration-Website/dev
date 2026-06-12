@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 학습 현황 집계 서비스 (US-08-03/04/05).
@@ -97,8 +99,20 @@ public class AnalyticsService {
                 .map(c -> new StudentSummaryResponse.CategoryCount(c.getCategory(), c.getCnt()))
                 .toList();
 
+        // 과목별 평균 점수 (어느 과목이 강하고 약한지 — 맞춤 학습 조언용)
+        Map<Long, String> subjectNames = dimSubjectRepository.findAll().stream()
+                .collect(Collectors.toMap(DimSubject::getSubjectId, DimSubject::getName));
+        List<StudentSummaryResponse.SubjectScore> subjectScores =
+                factGradeRepository.findStudentSubjectAverages(studentId).stream()
+                        .map(sa -> new StudentSummaryResponse.SubjectScore(
+                                sa.getSubjectId(),
+                                subjectNames.getOrDefault(sa.getSubjectId(), "?"),
+                                sa.getAvgScore() == null ? 0.0 : round(sa.getAvgScore())))
+                        .sorted((a, b) -> Double.compare(a.avgScore(), b.avgScore()))
+                        .toList();
+
         return new StudentSummaryResponse(student.getStudentId(), student.getName(),
-                trend, attendance, submission, feedback);
+                trend, subjectScores, attendance, submission, feedback);
     }
 
     /** 과목별 학습 현황 집계 (평균·분포·제출률) */
