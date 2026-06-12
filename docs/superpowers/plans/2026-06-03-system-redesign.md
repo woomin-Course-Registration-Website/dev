@@ -1273,7 +1273,6 @@ git commit -m "[docs] CLAUDE.md/AGENTS.md CI/CD 섹션을 Amplify + API Gateway 
 - GitHub repo 설정: Actions 탭에서 "Allow GitHub Actions to create and approve pull requests" 활성. `main` 보호 규칙이 있다면 `github-actions[bot]` 허용 또는 보호 해제.
 - GitHub 저장소에 `develop`, `staging`, `main` 3개 브랜치 존재.
 - 로컬에 `kubeseal` CLI 설치(`brew install kubeseal` 또는 GitHub Releases).
-- (Flyway V1) `./gradlew bootRun --args='--spring.profiles.active=schemadump'` 1회 실행 → `src/main/resources/db/migration/V1__init.sql` 생성 → 내용 검토 후 커밋.
 - (Alertmanager Discord) 알람 받을 Discord 채널의 webhook URL 준비. SealedSecret 생성:
   ```bash
   WEBHOOK="https://discord.com/api/webhooks/<id>/<token>/slack"  # 끝에 /slack 필수

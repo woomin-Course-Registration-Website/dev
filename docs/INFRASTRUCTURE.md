@@ -53,7 +53,7 @@ infra/terraform/
 - 백업 7일, `Mon:04:00-Mon:05:00` 유지보수창.
 - `deletion_protection: true`, Performance Insights 활성(7일).
 - 단일 인스턴스 + 환경별 논리 DB 3개(`student_mgmt_{dev,staging,prod}`) — 컷오버 시 SQL로 1회 생성.
-- **스키마 마이그레이션**: Flyway(`src/main/resources/db/migration/V*__*.sql`). prod 프로파일은 `ddl-auto: validate`로 잠겨 있어 Hibernate 자동 ALTER 불가. 첫 prod 배포 전 `schemadump` 프로파일로 V1__init.sql 1회 생성 필요.
+- **스키마 관리**: Hibernate `ddl-auto: update` (prod) — 학습용 프로젝트라 마이그레이션 도구 미도입. 운영 강화 시 Flyway 도입 권장.
 
 ### 2.4 Container Registry — ECR
 - repo `student-mgmt/backend` 1개만(frontend는 Amplify로 이관).
