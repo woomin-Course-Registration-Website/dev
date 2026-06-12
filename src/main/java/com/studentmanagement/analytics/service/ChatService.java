@@ -93,8 +93,9 @@ public class ChatService {
             return new ChatResponse(answer.isBlank() ? "(응답을 생성하지 못했습니다.)" : answer);
         } catch (ResponseStatusException e) {
             throw e;
-        } catch (Exception e) {
-            log.warn("[CHAT] LLM 호출 실패: {}", e.getMessage());
+        } catch (Throwable e) {
+            // SDK가 던지는 Error(NoSuchMethodError 등)까지 잡아 깔끔한 502로 변환 + 전체 스택 로깅
+            log.warn("[CHAT] LLM 호출 실패", e);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "AI 응답 생성 중 오류가 발생했습니다.");
         }
