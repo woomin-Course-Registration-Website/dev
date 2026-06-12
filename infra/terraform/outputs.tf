@@ -20,21 +20,12 @@ output "github_actions_role_arn" {
   value       = aws_iam_role.github_actions.arn
 }
 
-output "amplify_app_id" {
-  description = "Amplify 앱 ID (콘솔 링크용)"
-  value       = aws_amplify_app.main.id
-}
-
-output "amplify_branch_urls" {
-  description = "환경별 SPA URL (Amplify 기본 도메인)"
-  value = {
-    for k, v in local.amplify_branches : k => "https://${v.branch}.${aws_amplify_app.main.default_domain}"
-  }
-}
+# Amplify는 org deploy-key 제약으로 콘솔 GitHub App으로 연결(amplify.tf.console-managed 참고).
+# SPA URL은 Amplify 콘솔 또는 `aws amplify list-apps`로 확인.
 
 output "apigateway_endpoints" {
-  description = "환경별 API Gateway 기본 invoke URL (frontend VITE_API_BASE_URL에 /api 붙여서 사용)"
+  description = "환경별 API Gateway invoke URL (프론트 VITE_API_BASE_URL = <endpoint>/api)"
   value = {
-    for k, v in aws_apigatewayv2_api.env : k => v.api_endpoint
+    for k, a in aws_apigatewayv2_api.env : k => a.api_endpoint
   }
 }
