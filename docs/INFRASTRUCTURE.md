@@ -48,10 +48,12 @@ infra/terraform/
 
 ### 2.3 Data — RDS MySQL
 - `db.t3.medium`, MySQL 8.0, Multi-AZ, 20GB(Auto-Scaling 100GB 상한).
+- **`storage_encrypted = true`** — 디스크 평문 저장 금지(기본 AWS 관리 KMS 키, 개인정보보호법 정렬).
 - 파라미터: `utf8mb4`, `Asia/Seoul` 타임존.
 - 백업 7일, `Mon:04:00-Mon:05:00` 유지보수창.
 - `deletion_protection: true`, Performance Insights 활성(7일).
 - 단일 인스턴스 + 환경별 논리 DB 3개(`student_mgmt_{dev,staging,prod}`) — 컷오버 시 SQL로 1회 생성.
+- **스키마 마이그레이션**: Flyway(`src/main/resources/db/migration/V*__*.sql`). prod 프로파일은 `ddl-auto: validate`로 잠겨 있어 Hibernate 자동 ALTER 불가. 첫 prod 배포 전 `schemadump` 프로파일로 V1__init.sql 1회 생성 필요.
 
 ### 2.4 Container Registry — ECR
 - repo `student-mgmt/backend` 1개만(frontend는 Amplify로 이관).
@@ -67,6 +69,7 @@ infra/terraform/
   - 통합 대상: `data "aws_lb_listener" "env_http"`로 환경의 private ALB(80) listener arn을 조회 → HTTP_PROXY + VPC_LINK.
   - 모든 경로 `ANY /{proxy+}`로 패스스루.
   - CORS allow_origins: 해당 환경 Amplify 기본 URL 1개만 허용.
+  - **Throttling**: stage `default_route_settings`에 rate 100 req/s, burst 200 — DoS·비용 폭증 방어선.
   - URL 확인: `terraform output apigateway_endpoints`.
 
 ### 2.6 시크릿 — Sealed Secrets
@@ -89,7 +92,9 @@ infra/terraform/
 | `aws_lbc` | aws-load-balancer-controller | kube-system | Ingress → 환경별 private ALB 자동 생성 | `student-mgmt-aws-lbc` |
 | `cluster_autoscaler` | autoscaler/cluster-autoscaler | kube-system | 노드 그룹 자동 확장 | `student-mgmt-cluster-autoscaler` |
 | `metrics_server` | metrics-server | kube-system | HPA 메트릭 소스 | (없음) |
-| `kube_prometheus_stack` | prometheus-community/kube-prometheus-stack | monitoring | Prometheus + Grafana + Alertmanager + CRDs | (없음) |
+| `kube_prometheus_stack` | prometheus-community/kube-prometheus-stack | monitoring | Prometheus + Grafana + Alertmanager + CRDs (Discord 알람 라우팅, Loki 데이터소스) | (없음) |
+| `loki` | grafana/loki | monitoring | 로그 집계 저장소 (SingleBinary, 20Gi PV, 7일 보존) | (없음) |
+| `promtail` | grafana/promtail | monitoring | 노드 로그 수집 → Loki push (DaemonSet) | (없음) |
 | `sealed_secrets` | bitnami-labs/sealed-secrets | sealed-secrets | SealedSecret 복호화 컨트롤러 | (없음) |
 | `argocd` | argo/argo-cd | argocd | GitOps 컨트롤러 + UI | (없음) |
 | `argocd_bootstrap` | `${path.module}/../../k8s/bootstrap` (로컬 차트) | argocd | AppProject + ApplicationSet | (없음) |
