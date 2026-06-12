@@ -14,6 +14,13 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # 기존 DB(ddl-auto로 만들어진)는 V1을 적용된 상태로 표시 → 신규 DB에만 V1 실행
+    baseline-on-migrate: true
+    baseline-version: 1
+
   mail:
     host: smtp.gmail.com
     port: 587
@@ -55,8 +62,10 @@ spring:
       on-profile: dev
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create-drop   # 로컬 빠른 반복용 — Flyway 비활성
     show-sql: true
+  flyway:
+    enabled: false
 
 ---
 spring:
@@ -65,5 +74,31 @@ spring:
       on-profile: prod
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate      # Hibernate 자동 스키마 변경 금지 — Flyway가 관리
     show-sql: false
+  flyway:
+    enabled: true
+
+---
+# schemadump 프로파일: JPA 메타데이터에서 V1__init.sql을 자동 생성한다.
+# 사용법:
+#   1. dev DB가 비어 있는 상태에서 ./gradlew bootRun --args='--spring.profiles.active=schemadump'
+#   2. src/main/resources/db/migration/V1__init.sql 파일이 생성됨
+#   3. 내용 검토 후 Ctrl+C로 종료, git 커밋
+spring:
+  config:
+    activate:
+      on-profile: schemadump
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      jakarta:
+        persistence:
+          schema-generation:
+            scripts:
+              action: create
+              create-target: src/main/resources/db/migration/V1__init.sql
+              create-source: metadata
+  flyway:
+    enabled: false
