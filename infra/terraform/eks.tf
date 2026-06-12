@@ -186,17 +186,143 @@ resource "helm_release" "kube_prometheus_stack" {
   create_namespace = true
   version          = "65.1.1"
 
-  # student-mgmt 네임스페이스의 ServiceMonitor도 스크랩하도록 라벨 셀렉터 해제
-  set {
-    name  = "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues"
-    value = "false"
-  }
-  set {
-    name  = "prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues"
-    value = "false"
-  }
+  values = [yamlencode({
+    prometheus = {
+      prometheusSpec = {
+        # student-mgmt 네임스페이스의 ServiceMonitor도 스크랩하도록 라벨 셀렉터 해제
+        serviceMonitorSelectorNilUsesHelmValues = false
+        podMonitorSelectorNilUsesHelmValues     = false
+      }
+    }
+
+    alertmanager = {
+      alertmanagerSpec = {
+        # 'alertmanager-discord-webhook' SealedSecret을 Pod의
+        # /etc/alertmanager/secrets/alertmanager-discord-webhook/url 경로로 마운트.
+        # 운영자가 컷오버 시 Discord webhook URL + '/slack' 값을 채워 SealedSecret 생성.
+        secrets = ["alertmanager-discord-webhook"]
+      }
+      config = {
+        global = {
+          resolve_timeout = "5m"
+        }
+        route = {
+          receiver        = "discord"
+          group_by        = ["alertname", "namespace"]
+          group_wait      = "30s"
+          group_interval  = "5m"
+          repeat_interval = "4h"
+        }
+        receivers = [
+          {
+            name = "discord"
+            # Discord 웹훅 URL 끝에 '/slack'을 붙이면 Slack-포맷 페이로드를 받아준다 →
+            # Alertmanager의 slack_configs를 그대로 활용 (전용 프록시 불필요).
+            slack_configs = [{
+              api_url_file  = "/etc/alertmanager/secrets/alertmanager-discord-webhook/url"
+              send_resolved = true
+              title         = "[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}"
+              text          = <<-EOT
+                {{ range .Alerts }}
+                *Severity:* {{ .Labels.severity }}
+                *Namespace:* {{ .Labels.namespace }}
+                *Summary:* {{ .Annotations.summary }}
+                *Description:* {{ .Annotations.description }}
+                {{ end }}
+              EOT
+            }]
+          }
+        ]
+      }
+    }
+
+    grafana = {
+      # Loki를 추가 데이터소스로 등록 → Grafana에서 메트릭+로그 통합 조회.
+      additionalDataSources = [{
+        name      = "Loki"
+        type      = "loki"
+        url       = "http://loki.monitoring.svc.cluster.local:3100"
+        access    = "proxy"
+        isDefault = false
+      }]
+    }
+  })]
 
   depends_on = [module.eks]
+}
+
+# ── Loki + Promtail (컨테이너 로그 집계) ─────────────────────────────────────
+
+resource "helm_release" "loki" {
+  name             = "loki"
+  repository       = "https://grafana.github.io/helm-charts"
+  chart            = "loki"
+  namespace        = "monitoring"
+  create_namespace = true
+  version          = "6.16.0"
+
+  values = [yamlencode({
+    # 단일 노드 SingleBinary 모드 (소규모, 비용 최소화)
+    deploymentMode = "SingleBinary"
+    loki = {
+      auth_enabled = false
+      commonConfig = {
+        replication_factor = 1
+      }
+      storage = {
+        type = "filesystem"
+      }
+      schemaConfig = {
+        configs = [{
+          from         = "2024-01-01"
+          store        = "tsdb"
+          object_store = "filesystem"
+          schema       = "v13"
+          index = {
+            prefix = "loki_index_"
+            period = "24h"
+          }
+        }]
+      }
+      # 로그 보존 7일 (저비용)
+      limits_config = {
+        retention_period = "168h"
+      }
+    }
+    singleBinary = {
+      replicas = 1
+      persistence = {
+        enabled = true
+        size    = "20Gi"
+      }
+    }
+    # 비활성 (SingleBinary 모드)
+    backend      = { replicas = 0 }
+    read         = { replicas = 0 }
+    write        = { replicas = 0 }
+    chunksCache  = { enabled = false }
+    resultsCache = { enabled = false }
+  })]
+
+  depends_on = [module.eks]
+}
+
+resource "helm_release" "promtail" {
+  name       = "promtail"
+  repository = "https://grafana.github.io/helm-charts"
+  chart      = "promtail"
+  namespace  = "monitoring"
+  version    = "6.16.6"
+
+  values = [yamlencode({
+    config = {
+      clients = [{
+        url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+      }]
+    }
+  })]
+
+  depends_on = [helm_release.loki]
 }
 
 # ── Sealed Secrets ─────────────────────────────────────────────────────────
