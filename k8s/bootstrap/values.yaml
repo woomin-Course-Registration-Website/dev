@@ -4,3 +4,8 @@ environments:
   - dev
   - staging
   - prod
+
+# 학습 분석 CDC(가점) — Strimzi Kafka 워크로드를 Argo로 배포할지 여부.
+# true면 kafka-cdc Application 생성 + AppProject에 kafka 네임스페이스 허용.
+kafka:
+  enabled: true

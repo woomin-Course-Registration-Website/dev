@@ -1,6 +1,7 @@
 resource "aws_ecr_repository" "backend" {
   name                 = "${var.project}/backend"
   image_tag_mutability = "IMMUTABLE" # 태그 덮어쓰기 금지 — 배포 재현성 보장 (GitOps 권장)
+  force_delete         = true        # teardown: 이미지가 남아 있어도 repo 삭제 허용
 
   image_scanning_configuration {
     scan_on_push = true # 이미지 push 시 취약점 자동 스캔

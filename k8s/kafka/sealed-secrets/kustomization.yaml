@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []
+# 운영자가 kubeseal로 생성한 kafka-debezium-secret SealedSecret YAML을
+# resources 리스트에 추가하고 커밋한다. 예: resources: [kafka-debezium-secret.yaml]
+#
+# Secret 이름은 register-connector-job.yaml의 envFrom.secretRef.name과 일치해야 함:
+#   kafka-debezium-secret
+# 필요한 키:
+#   DEBEZIUM_DB_HOST      RDS 엔드포인트 (예: student-mgmt-db.xxxx.ap-northeast-2.rds.amazonaws.com)
+#   DEBEZIUM_DB_USER      REPLICATION SLAVE/CLIENT + SELECT 권한 보유 사용자
+#   DEBEZIUM_DB_PASSWORD  해당 사용자 비밀번호
+#
+# 생성 예:
+#   kubectl create secret generic kafka-debezium-secret -n kafka \
+#     --from-literal=DEBEZIUM_DB_HOST=<rds-endpoint> \
+#     --from-literal=DEBEZIUM_DB_USER=debezium \
+#     --from-literal=DEBEZIUM_DB_PASSWORD=<pw> \
+#     --dry-run=client -o yaml \
+#   | kubeseal --controller-namespace sealed-secrets --format yaml \
+#     > kafka-debezium-secret.yaml

@@ -10,3 +10,4 @@ images:
   newTag: 9b0d383f7dd62ba3710c80ac5c858c7794bb50e3
 patches:
 - path: ingress-patch.yaml
+- path: cdc-patch.yaml

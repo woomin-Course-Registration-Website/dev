@@ -1,0 +1,61 @@
+# Debezium MySQL 커넥터 등록 — docker/debezium/register-connector.sh의 EKS 버전.
+#
+# Argo Sync 훅(PostSync)으로 동작: 모든 리소스가 sync·healthy된 뒤 실행되어
+# Connect REST(8083)에 커넥터 설정을 PUT(멱등 — 재실행 시 갱신, 409 없음)한다.
+# RDS 접속 정보는 kafka-debezium-secret(SealedSecret)에서 env로 주입.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-debezium-connector
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: register
+          image: quay.io/debezium/connect:2.7
+          command: ["/bin/bash", "-c"]
+          envFrom:
+            - secretRef:
+                name: kafka-debezium-secret   # DEBEZIUM_DB_HOST / DEBEZIUM_DB_USER / DEBEZIUM_DB_PASSWORD
+          args:
+            - |
+              set -euo pipefail
+              CONNECT="http://debezium-connect:8083"
+              echo "Waiting for Kafka Connect at ${CONNECT} ..."
+              until curl -sf "${CONNECT}/connectors" >/dev/null 2>&1; do sleep 5; done
+
+              cat > /tmp/connector.json <<EOF
+              {
+                "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+                "tasks.max": "1",
+                "database.hostname": "${DEBEZIUM_DB_HOST}",
+                "database.port": "3306",
+                "database.user": "${DEBEZIUM_DB_USER}",
+                "database.password": "${DEBEZIUM_DB_PASSWORD}",
+                "database.server.id": "184054",
+                "topic.prefix": "dbserver1",
+                "database.include.list": "student_management",
+                "table.include.list": "student_management.grades,student_management.student_records,student_management.feedbacks,student_management.submissions,student_management.students,student_management.subjects",
+                "schema.history.internal.kafka.bootstrap.servers": "student-kafka-kafka-bootstrap:9092",
+                "schema.history.internal.kafka.topic": "schema-changes.student_management",
+                "include.schema.changes": "false",
+                "decimal.handling.mode": "double",
+                "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+                "value.converter.schemas.enable": "false",
+                "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+                "key.converter.schemas.enable": "false"
+              }
+              EOF
+
+              echo "Registering/updating connector student-mysql-connector ..."
+              curl -sf -X PUT -H "Content-Type: application/json" \
+                --data @/tmp/connector.json \
+                "${CONNECT}/connectors/student-mysql-connector/config" | tee /dev/stderr
+              echo
+              echo "Status:"
+              curl -sf "${CONNECT}/connectors/student-mysql-connector/status" || true

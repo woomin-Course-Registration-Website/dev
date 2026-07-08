@@ -1,0 +1,19 @@
+# dev 환경에서만 학습 분석 CDC(가점)를 활성화.
+# CdcConsumer는 app.analytics.cdc.enabled=true일 때만 빈으로 등록되며,
+# kafka 네임스페이스의 Strimzi 브로커에 연결한다(cross-namespace DNS).
+# staging/prod overlay에는 이 패치가 없으므로 CDC는 꺼진 채 배치 ETL만 동작.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: student-mgmt
+spec:
+  template:
+    spec:
+      containers:
+        - name: backend
+          env:
+            - name: APP_ANALYTICS_CDC_ENABLED
+              value: "true"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: student-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092

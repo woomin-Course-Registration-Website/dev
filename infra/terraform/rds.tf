@@ -31,8 +31,8 @@ module "rds" {
   backup_window           = "03:00-04:00"
   maintenance_window      = "Mon:04:00-Mon:05:00"
 
-  deletion_protection              = true
-  skip_final_snapshot              = false
+  deletion_protection              = false # teardown: 삭제 보호 해제
+  skip_final_snapshot              = true  # teardown: 최종 스냅샷 생략 (백업 불필요)
   final_snapshot_identifier_prefix = "${var.project}-db-final-snapshot"
 
   performance_insights_enabled          = true
@@ -43,5 +43,11 @@ module "rds" {
     { name = "character_set_server", value = "utf8mb4" },
     { name = "collation_server", value = "utf8mb4_unicode_ci" },
     { name = "time_zone", value = "Asia/Seoul" },
+    # Debezium CDC(가점)용 binlog 설정 — ROW 포맷 + FULL row image.
+    # 적용에 재부팅 필요(pending-reboot). binlog 보존시간은 파라미터가 아니므로
+    # 컷오버 시 SQL로 1회: CALL mysql.rds_set_configuration('binlog retention hours', 24);
+    # CDC 미사용 환경에도 무해(자동 백업이 켜져 있어 binlog는 어차피 생성됨).
+    { name = "binlog_format", value = "ROW", apply_method = "pending-reboot" },
+    { name = "binlog_row_image", value = "FULL", apply_method = "pending-reboot" },
   ]
 }

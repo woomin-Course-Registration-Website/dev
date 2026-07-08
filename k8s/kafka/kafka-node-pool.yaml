@@ -1,0 +1,23 @@
+# Strimzi KRaft 노드 풀 — controller+broker 겸용 단일 노드(비용 최소화, 데모 규모).
+# 스토리지는 ephemeral: 파드 재시작 시 데이터 소실 허용(CDC는 재스냅샷으로 복구).
+# 영속이 필요하면 type를 persistent-claim + size로 교체(EBS gp3, CSI 드라이버 이미 설치됨).
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  labels:
+    strimzi.io/cluster: student-kafka
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: ephemeral
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"

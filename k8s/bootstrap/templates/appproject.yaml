@@ -12,6 +12,11 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: student-mgmt-{{ . }}
 {{- end }}
+{{- if .Values.kafka.enabled }}
+    # 학습 분석 CDC(가점) — Strimzi Kafka 워크로드 네임스페이스
+    - server: https://kubernetes.default.svc
+      namespace: kafka
+{{- end }}
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"

@@ -1,0 +1,7 @@
+# 로컬 실행용 오버라이드 (커밋하지 않음)
+# - dev 프로파일: 스키마 자동 생성(create-drop) + /api/dev/seed 활성 + CORS "*"
+#   (prod 프로파일은 CORS_ALLOWED_ORIGIN 등 환경변수를 요구해 로컬 실행에 부적합)
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev

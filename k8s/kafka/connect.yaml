@@ -1,0 +1,78 @@
+# Debezium Kafka Connect — docker-compose의 debezium/connect:2.7과 동일 이미지 사용.
+#
+# Strimzi의 KafkaConnect CR(spec.build) 대신 평문 Deployment를 쓰는 이유:
+#   spec.build는 커넥터 플러그인을 포함한 이미지를 빌드해 레지스트리(ECR)로 push해야 하므로
+#   kaniko 빌더 + push secret 파이프라인이 추가로 필요하다. Debezium 공식 이미지는 MySQL
+#   커넥터를 이미 포함하므로, 데모/가점 범위에선 이 이미지를 그대로 쓰는 편이 단순·확실하다.
+#   (운영 강화 시 Strimzi KafkaConnect + build→ECR 전환 가능)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium-connect
+  labels:
+    app: debezium-connect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debezium-connect
+  template:
+    metadata:
+      labels:
+        app: debezium-connect
+    spec:
+      containers:
+        - name: connect
+          image: quay.io/debezium/connect:2.7
+          ports:
+            - containerPort: 8083
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: student-kafka-kafka-bootstrap:9092
+            - name: GROUP_ID
+              value: "analytics-connect"
+            - name: CONFIG_STORAGE_TOPIC
+              value: connect_configs
+            - name: OFFSET_STORAGE_TOPIC
+              value: connect_offsets
+            - name: STATUS_STORAGE_TOPIC
+              value: connect_statuses
+            # 단일 브로커이므로 내부 스토리지 토픽 복제 인자도 1.
+            - name: CONFIG_STORAGE_REPLICATION_FACTOR
+              value: "1"
+            - name: OFFSET_STORAGE_REPLICATION_FACTOR
+              value: "1"
+            - name: STATUS_STORAGE_REPLICATION_FACTOR
+              value: "1"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /connectors
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /connectors
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: debezium-connect
+  labels:
+    app: debezium-connect
+spec:
+  selector:
+    app: debezium-connect
+  ports:
+    - port: 8083
+      targetPort: 8083

@@ -27,7 +27,7 @@ terraform {
   #   --key-schema AttributeName=LockID,KeyType=HASH \
   #   --billing-mode PAY_PER_REQUEST --region ap-northeast-2
   backend "s3" {
-    bucket         = "student-mgmt-tfstate"
+    bucket         = "student-mgmt-tfstate-899259776537"
     key            = "prod/terraform.tfstate"
     region         = "ap-northeast-2"
     encrypt        = true

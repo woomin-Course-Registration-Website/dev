@@ -1,0 +1,27 @@
+{{- if .Values.kafka.enabled }}
+# 학습 분석 CDC(가점) 워크로드 — Strimzi Kafka 브로커 + Debezium Connect + 커넥터 등록 Job.
+# Strimzi "오퍼레이터"는 Terraform(helm_release.strimzi_kafka_operator)이 먼저 설치하고,
+# 그 CRD를 사용하는 아래 CR들은 Argo가 k8s/kafka 경로에서 sync한다.
+# (오퍼레이터/CRD가 아직 없으면 첫 sync는 실패 → Argo가 자동 재시도하여 수렴)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kafka-cdc
+  namespace: argocd
+spec:
+  project: student-mgmt
+  source:
+    repoURL: {{ .Values.repoURL | quote }}
+    targetRevision: {{ .Values.targetRevision }}
+    path: k8s/kafka
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kafka
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # Strimzi CRD가 커서 client-side apply 어노테이션 한계 회피
+{{- end }}
